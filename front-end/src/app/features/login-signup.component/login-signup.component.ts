@@ -109,7 +109,7 @@ export class LoginSignupComponent {
   }
 
   // ---------- Validation messages ----------
-  loginError(name: 'studentId' | 'password'): string | null {
+  loginError(name: keyof typeof this.loginForm.controls): string | null {
     const control = this.loginForm.controls[name];
     if (!control.touched || control.valid) return null;
     return 'هذا الحقل مطلوب';

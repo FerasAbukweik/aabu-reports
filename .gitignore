@@ -1,44 +1,78 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+## .NET build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+artifacts/
+publish/
+*.dll
+*.exe
+*.pdb
+*.nupkg
+*.snupkg
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
 
-# Compiled output
-/dist
-/tmp
-/out-tsc
-/bazel-out
+## Logs (Serilog writes to logs/log.txt)
+logs/
+*.log
 
-# Node
-/node_modules
-npm-debug.log
-yarn-error.log
+## Secrets and local settings (keep real keys and connection strings out of git)
+.env
+.env.*
+*.local.json
+appsettings.Local.json
+appsettings.Production.json
+secrets.json
 
-# IDEs and editors
-.idea/
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# Visual Studio Code
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.rsuser
+*.vsidx
+*.sln.iml
+*.DotSettings.user
+_ReSharper*/
+*.[Rr]e[Ss]harper
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/mcp.json
-.history/*
 
-# Miscellaneous
-/.angular/cache
-.sass-cache/
-/connect.lock
-/coverage
-/libpeerconnection.log
-testem.log
-/typings
-__screenshots__/
+## JetBrains Rider
+.idea/
+*.sln.iml
 
-# System files
+## Tests and coverage
+TestResults/
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+
+## Entity Framework (generated SQL scripts, local databases)
+*.mdf
+*.ldf
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.dacpac
+
+## Docker
+docker-compose.override.yml
+
+## OS files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

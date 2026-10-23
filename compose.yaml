@@ -1,0 +1,57 @@
+﻿services:
+  aabu_reports:
+    container_name: aabu_reports.webapi
+    build:
+      context: .
+      dockerfile: src/aabu_reports.webapi/Dockerfile
+      args:
+        BUILD_CONFIGURATION: ${ASPNETCORE_ENVIRONMENT}
+    ports:
+      - 8080:8080
+      - 8081:8081
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ConnectionStrings__Default=server=mssql-service;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True;Database=AABU_REPORTS
+      - Jwt__Key=${JWT_KEY}
+      - Serilog__WriteTo__2__Args__serverUrl=http://seq:80
+    depends_on:
+      mssql-service:
+        condition: service_healthy
+      seq:
+        condition: service_started
+        
+        
+  mssql-service:
+    container_name: aabu_reports.mssql-server
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    ports:
+      - 1433:1433
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${SQL_PASSWORD}
+      - MSSQL_PID=Evaluation
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"${SQL_PASSWORD}\" -Q \"SELECT 1\" -C || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+      
+      
+  seq:
+    container_name: aabu_reports.seq
+    image: datalust/seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_PASSWORD=${SEQ_PASSWORD}
+    volumes:
+      - /path/to/seq/data:/data
+    ports:
+      - 5341:80
+
+
+
+volumes:
+  mssql_data:

@@ -1,0 +1,518 @@
+<main class="min-h-screen flex items-start justify-center p-4 sm:px-6 sm:pt-[4.5rem] sm:pb-6">
+  <div class="w-full max-w-[54rem] mx-auto">
+    <!-- ========== University brand header ========== -->
+    <header class="flex flex-col items-center justify-center text-center mb-5">
+      <div
+        class="relative w-[4.25rem] h-[4.25rem] mb-2 flex items-center justify-center rounded-full bg-surface-card-subtle shadow-sm"
+      >
+        <img
+          src="assets/images/aabu-logo.png"
+          alt="شعار جامعة آل البيت"
+          class="w-12 aspect-square object-contain"
+        />
+        <div
+          class="absolute -bottom-1 -end-1 w-5 h-5 rounded-full bg-accent text-on-accent flex items-center justify-center shadow-sm"
+        >
+          <span class="material-symbols-outlined text-[12px]" aria-hidden="true">school</span>
+        </div>
+      </div>
+
+      <h1 class="text-xl font-bold text-primary tracking-tight">جامعة آل البيت</h1>
+      <p class="text-xs font-semibold text-accent-hover">Al al-Bayt University • تأسست 1992</p>
+
+      <div class="badge badge-neutral mt-2 px-3 rounded-full text-[11px]">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+        <span>المنظومة الإدارية للخدمات الطلابية والمرافق العامة</span>
+      </div>
+    </header>
+
+    <!-- ========== Main grid ========== -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <!-- ===== Primary card (forms) ===== -->
+      <section class="card p-5 lg:col-span-7 lg:order-2">
+        <div class="flex items-start justify-between pb-1 mb-3">
+          <div>
+            <h2 class="text-lg font-semibold text-primary">بوابة البلاغات الطلابية</h2>
+            <p class="text-[11px] text-text-secondary mt-0.5">
+              يرجى إدخال بيانات الدخول المعتمدة في بوابة الطالب الإلكترونية
+            </p>
+          </div>
+          <span
+            class="material-symbols-outlined text-primary text-[24px] p-2 bg-surface-card-subtle rounded-lg"
+            aria-hidden="true"
+          >
+            shield_person
+          </span>
+        </div>
+
+        <!-- Tabs -->
+        <div
+          class="bg-surface-card-subtle p-1 rounded-lg flex items-center gap-1 mb-4"
+          role="tablist"
+        >
+          <button
+            type="button"
+            role="tab"
+            class="tab-btn text-xs py-2"
+            [class.active]="activeTab() === 'login'"
+            [attr.aria-selected]="activeTab() === 'login'"
+            (click)="setTab('login')"
+          >
+            <span class="material-symbols-outlined text-base" aria-hidden="true">lock_open</span>
+            <span>تسجيل الدخول</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="tab-btn text-xs py-2"
+            [class.active]="activeTab() === 'activate'"
+            [attr.aria-selected]="activeTab() === 'activate'"
+            (click)="setTab('activate')"
+          >
+            <span class="material-symbols-outlined text-base" aria-hidden="true">how_to_reg</span>
+            <span>تفعيل حساب جديد / التحقق</span>
+          </button>
+        </div>
+
+        @if (activeTab() === 'login') {
+          <!-- ========== FORM 1: Login ========== -->
+          <form
+            [formGroup]="loginForm"
+            (ngSubmit)="onLogin()"
+            class="flex flex-col gap-3"
+            novalidate
+          >
+            <!-- Student / National ID -->
+            <div class="flex flex-col gap-1">
+              <label for="login-id" class="field-label text-xs flex items-center justify-between">
+                <span>الرقم الجامعي أو الرقم الوطني</span>
+                <span class="text-[11px] text-text-secondary font-normal">معرف الحساب الموحد</span>
+              </label>
+              <div class="field-wrapper h-10" [class.invalid]="!!loginError('studentId')">
+                <input
+                  id="login-id"
+                  type="text"
+                  formControlName="studentId"
+                  autocomplete="username"
+                  class="field-input h-full py-0 text-xs"
+                  placeholder="مثال: 230010182 أو 9982014521"
+                />
+                <span
+                  class="material-symbols-outlined field-icon text-xl pointer-events-none"
+                  aria-hidden="true"
+                  >badge</span
+                >
+              </div>
+              @if (loginError('studentId'); as msg) {
+                <p class="field-error" role="alert">{{ msg }}</p>
+              }
+            </div>
+
+            <!-- Password -->
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center justify-between">
+                <label for="login-password" class="field-label text-xs">كلمة المرور</label>
+                <a
+                  href="#"
+                  class="link-accent text-[11px]"
+                  (click)="$event.preventDefault(); openHelp()"
+                >
+                  <span class="material-symbols-outlined text-[14px]" aria-hidden="true">help</span>
+                  <span>هل نسيت كلمة السر؟</span>
+                </a>
+              </div>
+              <div class="field-wrapper h-10" [class.invalid]="!!loginError('password')">
+                <input
+                  id="login-password"
+                  [type]="showLoginPassword() ? 'text' : 'password'"
+                  formControlName="password"
+                  autocomplete="current-password"
+                  class="field-input h-full py-0 text-xs"
+                  placeholder="••••••••••••"
+                />
+                <button
+                  type="button"
+                  class="field-icon-btn"
+                  aria-label="تبديل إظهار كلمة المرور"
+                  [attr.aria-pressed]="showLoginPassword()"
+                  (click)="toggle('login')"
+                >
+                  <span class="material-symbols-outlined text-lg select-none" aria-hidden="true">
+                    {{ showLoginPassword() ? 'visibility_off' : 'visibility' }}
+                  </span>
+                </button>
+              </div>
+              @if (loginError('password'); as msg) {
+                <p class="field-error" role="alert">{{ msg }}</p>
+              }
+            </div>
+
+            <!-- Remember me -->
+            <div class="flex items-center justify-between pt-0.5">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  formControlName="remember"
+                  class="w-3.5 h-3.5 rounded accent-primary cursor-pointer"
+                />
+                <span class="text-[11px] text-text-secondary">حفظ جلسة الدخول على هذا الجهاز</span>
+              </label>
+              <span class="badge badge-neutral text-[11px]">SSL 256-bit</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col sm:flex-row gap-3 pt-1">
+              <button
+                type="submit"
+                class="btn h-11 text-sm flex-1"
+                [class.btn-primary]="loginState() !== 'success'"
+                [class.btn-accent]="loginState() === 'success'"
+                [disabled]="loginState() === 'loading'"
+              >
+                <span aria-live="polite" class="inline-flex items-center gap-2">
+                  @switch (loginState()) {
+                    @case ('loading') {
+                      <span
+                        class="material-symbols-outlined animate-spin text-lg"
+                        aria-hidden="true"
+                        >sync</span
+                      >
+                      <span>جارِ التحقق من الحساب...</span>
+                    }
+                    @case ('success') {
+                      <span class="material-symbols-outlined text-lg" aria-hidden="true"
+                        >check_circle</span
+                      >
+                      <span>تم التحقق بنجاح</span>
+                    }
+                    @default {
+                      <span>تسجيل الدخول إلى البوابة</span>
+                      <span class="material-symbols-outlined text-lg" aria-hidden="true"
+                        >arrow_back</span
+                      >
+                    }
+                  }
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-subtle h-11 text-sm"
+                (click)="setTab('activate')"
+              >
+                <span class="material-symbols-outlined text-base" aria-hidden="true"
+                  >person_add</span
+                >
+                <span>إنشاء حساب جديد</span>
+              </button>
+            </div>
+          </form>
+        } @else {
+          <!-- ========== FORM 2: Activation ========== -->
+          <form
+            [formGroup]="activateForm"
+            (ngSubmit)="onActivate()"
+            class="flex flex-col gap-3"
+            novalidate
+          >
+            <div class="info-box">
+              <span class="material-symbols-outlined text-lg mt-0.5" aria-hidden="true">info</span>
+              <span class="text-[11px] leading-relaxed">
+                تفعيل الحساب متاح لطلبة وموظفي جامعة آل البيت المقيدين رسمياً للفصل الحالي، مع
+                التحقق عبر رمز OTP الهاتفي.
+              </span>
+            </div>
+
+            <!-- Full name -->
+            <div class="flex flex-col gap-1">
+              <label for="act-name" class="field-label text-xs">اسم المستخدم الرباعي</label>
+              <div class="field-wrapper h-10" [class.invalid]="!!activateError('fullName')">
+                <input
+                  id="act-name"
+                  type="text"
+                  formControlName="fullName"
+                  autocomplete="name"
+                  class="field-input h-full py-0 text-xs"
+                  placeholder="مثال: فراس سعيد أحمد الخالدي"
+                />
+                <span class="material-symbols-outlined field-icon text-xl" aria-hidden="true"
+                  >person</span
+                >
+              </div>
+              @if (activateError('fullName'); as msg) {
+                <p class="field-error" role="alert">{{ msg }}</p>
+              }
+            </div>
+
+            <!-- National ID & Birthdate -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1">
+                <label for="act-national-id" class="field-label text-xs"
+                  >الرقم الوطني / رقم الجواز</label
+                >
+                <div class="field-wrapper h-10" [class.invalid]="!!activateError('nationalId')">
+                  <input
+                    id="act-national-id"
+                    type="text"
+                    formControlName="nationalId"
+                    class="field-input h-full py-0 text-xs"
+                    placeholder="2001554902"
+                  />
+                  <span class="material-symbols-outlined field-icon text-xl" aria-hidden="true"
+                    >featured_video</span
+                  >
+                </div>
+                @if (activateError('nationalId'); as msg) {
+                  <p class="field-error" role="alert">{{ msg }}</p>
+                }
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label for="act-birth" class="field-label text-xs">تاريخ الميلاد</label>
+                <div class="field-wrapper h-10" [class.invalid]="!!activateError('birthDate')">
+                  <input
+                    id="act-birth"
+                    type="date"
+                    formControlName="birthDate"
+                    autocomplete="bday"
+                    class="field-input h-full py-0 text-xs"
+                  />
+                  <span class="material-symbols-outlined field-icon text-xl" aria-hidden="true"
+                    >calendar_month</span
+                  >
+                </div>
+                @if (activateError('birthDate'); as msg) {
+                  <p class="field-error" role="alert">{{ msg }}</p>
+                }
+              </div>
+            </div>
+
+            <!-- Phone -->
+            <div class="flex flex-col gap-1">
+              <label for="act-phone" class="field-label text-xs"
+                >رقم الهاتف النقال (المعتمد في القبول والتسجيل)</label
+              >
+              <div class="field-wrapper h-10" [class.invalid]="!!activateError('phone')">
+                <input
+                  id="act-phone"
+                  type="tel"
+                  dir="ltr"
+                  formControlName="phone"
+                  autocomplete="tel"
+                  class="field-input h-full py-0 text-xs text-start"
+                  placeholder="079XXXXXXXX"
+                />
+                <span class="material-symbols-outlined field-icon text-xl" aria-hidden="true"
+                  >phone_iphone</span
+                >
+              </div>
+              @if (activateError('phone'); as msg) {
+                <p class="field-error" role="alert">{{ msg }}</p>
+              }
+            </div>
+
+            <!-- Passwords -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1">
+                <label for="act-password" class="field-label text-xs">كلمة السر الجديدة</label>
+                <div class="field-wrapper h-10" [class.invalid]="!!activateError('password')">
+                  <input
+                    id="act-password"
+                    [type]="showNewPassword() ? 'text' : 'password'"
+                    formControlName="password"
+                    autocomplete="new-password"
+                    class="field-input h-full py-0 text-xs"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    class="field-icon-btn"
+                    aria-label="تبديل إظهار كلمة السر الجديدة"
+                    [attr.aria-pressed]="showNewPassword()"
+                    (click)="toggle('new')"
+                  >
+                    <span class="material-symbols-outlined text-lg select-none" aria-hidden="true">
+                      {{ showNewPassword() ? 'visibility_off' : 'visibility' }}
+                    </span>
+                  </button>
+                </div>
+                @if (activateError('password'); as msg) {
+                  <p class="field-error" role="alert">{{ msg }}</p>
+                }
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label for="act-confirm" class="field-label text-xs">تأكيد كلمة السر</label>
+                <div
+                  class="field-wrapper h-10"
+                  [class.invalid]="!!activateError('confirmPassword')"
+                >
+                  <input
+                    id="act-confirm"
+                    [type]="showConfirmPassword() ? 'text' : 'password'"
+                    formControlName="confirmPassword"
+                    autocomplete="new-password"
+                    class="field-input h-full py-0 text-xs"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    class="field-icon-btn"
+                    aria-label="تبديل إظهار تأكيد كلمة السر"
+                    [attr.aria-pressed]="showConfirmPassword()"
+                    (click)="toggle('confirm')"
+                  >
+                    <span class="material-symbols-outlined text-lg select-none" aria-hidden="true">
+                      {{ showConfirmPassword() ? 'visibility_off' : 'visibility' }}
+                    </span>
+                  </button>
+                </div>
+                @if (activateError('confirmPassword'); as msg) {
+                  <p class="field-error" role="alert">{{ msg }}</p>
+                }
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-3 pt-1">
+              <button type="submit" class="btn btn-accent h-11 text-sm flex-1">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">verified</span>
+                <span>تأكيد الحساب وإرسال الرمز</span>
+              </button>
+              <button type="button" class="btn btn-subtle h-11 text-sm" (click)="setTab('login')">
+                أمتلك حساباً بالفعل
+              </button>
+            </div>
+          </form>
+        }
+      </section>
+
+      <!-- ===== Side column ===== -->
+      <aside class="lg:col-span-5 lg:order-1 flex flex-col gap-3">
+        <!-- OTP card -->
+        <div class="card p-4 relative overflow-hidden">
+          <div class="absolute top-0 start-0 w-1.5 h-full bg-accent"></div>
+
+          <div class="flex items-center justify-between mb-2">
+            <span class="badge badge-accent text-[11px]">
+              <span class="material-symbols-outlined text-[13px]" aria-hidden="true">sms</span>
+              رمز التحقق الفوري (OTP)
+            </span>
+            <span class="text-xs font-bold text-accent-hover" aria-live="off" dir="ltr">
+              {{ countdownLabel() }}
+            </span>
+          </div>
+
+          <h3 class="text-sm font-bold text-primary">التحقق من الهاتف المعتمد</h3>
+          <p class="text-[11px] text-text-secondary mt-1">
+            تم تجهيز رسالة التوثيق للرقم المسجل:
+            <span class="font-bold text-primary" dir="ltr">+962 79XXXXXXX</span>
+          </p>
+
+          <!-- 6-digit inputs -->
+          <div class="grid grid-cols-6 gap-2 my-3" dir="ltr">
+            @for (i of otpIndexes; track i) {
+              <input
+                #otpInput
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="1"
+                class="otp-box h-10 text-base"
+                placeholder="•"
+                [attr.aria-label]="'الخانة ' + (i + 1) + ' من رمز التحقق'"
+                [value]="otpDigits()[i]"
+                (input)="onOtpInput(i, $event)"
+                (keydown)="onOtpKeydown(i, $event)"
+                (paste)="onOtpPaste($event)"
+              />
+            }
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-text-secondary">
+            <span>لم يصلك الرمز بعد؟</span>
+            <button type="button" class="link-accent" (click)="onResendOtp()">
+              إعادة إرسال الرمز
+            </button>
+          </div>
+        </div>
+
+        <!-- Shortcut tiles -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <a href="#" class="tile p-3 group" (click)="$event.preventDefault()">
+            <div class="icon-tile w-9 h-9 bg-primary text-on-primary">
+              <span class="material-symbols-outlined text-[20px]" aria-hidden="true"
+                >menu_book</span
+              >
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-primary">دليل استخدام البوابة</h4>
+              <p class="text-[11px] text-text-secondary mt-1">
+                خطوات الإبلاغ ومتابعة الصيانة والمرافق خطوة بخطوة
+              </p>
+            </div>
+            <div class="link-accent text-[11px] mt-2">
+              <span>تصفح الدليل</span>
+              <span class="material-symbols-outlined text-sm" aria-hidden="true">arrow_back</span>
+            </div>
+          </a>
+
+          <a href="#" class="tile p-3 group" (click)="$event.preventDefault()">
+            <div class="icon-tile w-9 h-9 bg-accent text-on-accent">
+              <span class="material-symbols-outlined text-[20px]" aria-hidden="true"
+                >contact_support</span
+              >
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-primary">الأسئلة والدعم الفني</h4>
+              <p class="text-[11px] text-text-secondary mt-1">
+                مركز الحاسوب وعمادة شؤون الطلبة - المفرق
+              </p>
+            </div>
+            <div class="link-accent text-[11px] mt-2">
+              <span>مكتب المساعدة</span>
+              <span class="material-symbols-outlined text-sm" aria-hidden="true">arrow_back</span>
+            </div>
+          </a>
+        </div>
+
+        <!-- Official notice -->
+        <div
+          class="rounded-xl p-2.5 bg-surface-card-subtle border border-border-subtle flex items-center gap-3"
+        >
+          <span class="material-symbols-outlined text-accent-hover text-xl" aria-hidden="true"
+            >verified_user</span
+          >
+          <div class="flex flex-col">
+            <span class="text-[11px] font-semibold text-primary">نظام إدارة البلاغات الموحد</span>
+            <span class="text-[11px] text-text-secondary"
+              >البيانات خاضعة لتعليمات الاستخدام الآمن بجامعة آل البيت</span
+            >
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ========== Footer ========== -->
+    <footer
+      class="mt-6 pt-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-text-secondary"
+    >
+      <div class="flex items-center gap-2">
+        <span>© 2025 مركز الحاسوب والمعلوماتية - جامعة آل البيت</span>
+        <span>•</span>
+        <span>المملكة الأردنية الهاشمية</span>
+      </div>
+      <nav class="flex items-center gap-4 font-semibold">
+        <a href="#" class="hover:text-primary transition-colors" (click)="$event.preventDefault()"
+          >سياسة الخصوصية</a
+        >
+        <a href="#" class="hover:text-primary transition-colors" (click)="$event.preventDefault()"
+          >شروط الاستخدام</a
+        >
+        <a href="#" class="hover:text-primary transition-colors" (click)="$event.preventDefault()"
+          >الهواتف الفرعية</a
+        >
+      </nav>
+    </footer>
+  </div>
+</main>
