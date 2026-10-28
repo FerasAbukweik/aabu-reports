@@ -230,6 +230,25 @@ namespace aabu_reports.infrastructure.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("aabu_reports.core.Entities.Location", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Locations");
+                });
+
             modelBuilder.Entity("aabu_reports.core.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -254,6 +273,47 @@ namespace aabu_reports.infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("aabu_reports.core.Entities.Report", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Rate")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ReportDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Reports");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -307,6 +367,36 @@ namespace aabu_reports.infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("aabu_reports.core.Entities.Location", b =>
+                {
+                    b.OwnsOne("aabu_reports.core.Classes.MapCoordinates", "Coordinates", b1 =>
+                        {
+                            b1.Property<Guid>("LocationId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<double>("Lat")
+                                .HasColumnType("float")
+                                .HasColumnName("Lat");
+
+                            b1.Property<double>("Lng")
+                                .HasColumnType("float")
+                                .HasColumnName("Lng");
+
+                            b1.HasKey("LocationId");
+
+                            b1.HasIndex("Lat", "Lng")
+                                .IsUnique();
+
+                            b1.ToTable("Locations");
+
+                            b1.WithOwner()
+                                .HasForeignKey("LocationId");
+                        });
+
+                    b.Navigation("Coordinates")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("aabu_reports.core.Entities.RefreshToken", b =>
                 {
                     b.HasOne("aabu_reports.core.Entities.Identity.ApplicationUser", "User")
@@ -318,9 +408,35 @@ namespace aabu_reports.infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("aabu_reports.core.Entities.Report", b =>
+                {
+                    b.HasOne("aabu_reports.core.Entities.Location", "Location")
+                        .WithMany("Reports")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("aabu_reports.core.Entities.Identity.ApplicationUser", "User")
+                        .WithMany("Reports")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("aabu_reports.core.Entities.Identity.ApplicationUser", b =>
                 {
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("Reports");
+                });
+
+            modelBuilder.Entity("aabu_reports.core.Entities.Location", b =>
+                {
+                    b.Navigation("Reports");
                 });
 #pragma warning restore 612, 618
         }

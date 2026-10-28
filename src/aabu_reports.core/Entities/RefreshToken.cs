@@ -26,4 +26,17 @@ public class RefreshToken
     // methods
     
     public bool IsExpired => ExpiresAt < DateTime.UtcNow;
+    
+    
+    // override
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is not RefreshToken other) return false;
+        
+        return Id == other.Id &&
+               RefreshTokenString == other.RefreshTokenString &&
+               ExpiresAt == other.ExpiresAt &&
+               UserId == other.UserId;
+    }
 }

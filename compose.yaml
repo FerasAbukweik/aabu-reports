@@ -14,6 +14,10 @@
       - ConnectionStrings__Default=server=mssql-service;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True;Database=AABU_REPORTS
       - Jwt__Key=${JWT_KEY}
       - Serilog__WriteTo__2__Args__serverUrl=http://seq:80
+      - SeedAdmin__StudentId=${ADMIN_STUDENT_ID}
+      - SeedAdmin__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - SeedAdmin__Email=${ADMIN_EMAIL}
+      - SeedAdmin__FullName=${ADMIN_FULL_NAME}
     depends_on:
       mssql-service:
         condition: service_healthy
@@ -47,7 +51,7 @@
       - ACCEPT_EULA=Y
       - SEQ_PASSWORD=${SEQ_PASSWORD}
     volumes:
-      - /path/to/seq/data:/data
+      - seq-data:/data
     ports:
       - 5341:80
 
@@ -55,3 +59,4 @@
 
 volumes:
   mssql_data:
+  seq-data:

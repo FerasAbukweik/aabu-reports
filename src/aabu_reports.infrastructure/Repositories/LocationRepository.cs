@@ -1,0 +1,89 @@
+using aabu_reports.core.DTOs.Location;
+using aabu_reports.core.Entities;
+using aabu_reports.core.Enums;
+using aabu_reports.core.Interfaces.RepositoryContracts;
+using Microsoft.EntityFrameworkCore;
+
+namespace aabu_reports.infrastructure.Repositories;
+
+public class LocationRepository(
+    ApplicationDbContext dbContext
+) : ILocationRepository
+{
+    public void AddLocation(Location location)
+    {
+        dbContext.Locations.Add(location);
+    }
+
+    public async Task<Location?> RemoveById(Guid id, CancellationToken cancellationToken = default)
+    {
+        var toRemove = await dbContext.Locations.FindAsync([id], cancellationToken);
+        if (toRemove == null) return null;
+
+        dbContext.Locations.Remove(toRemove);
+
+        return toRemove;
+    }
+
+    public async Task<Location?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        // the highest report state is the biggest number (the enum is ordered by importance),
+        // null means the location has no reports
+        var row = await dbContext.Locations
+            .AsNoTracking()
+            .Where(l => l.Id == id)
+            .Select(l => new
+            {
+                Location = l,
+                Highest = l.Reports.Max(r => (int?)r.State) ?? 0,
+                ReportsCount = l.Reports.Count()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (row == null) return null;
+
+        row.Location.State = (ReportState)row.Highest;
+        row.Location.ReportsCount = row.ReportsCount;
+
+        return row.Location;
+    }
+
+    public async Task<IReadOnlyList<Location>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.Locations
+            .AsNoTracking()
+            .OrderBy(l => l.Title)
+            .Select(l => new
+            {
+                Location = l,
+                Highest = l.Reports.Max(r => (int?)r.State) ?? 0,
+                ReportsCount = l.Reports.Count()
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in rows)
+        {
+            row.Location.State = (ReportState)row.Highest;
+            row.Location.ReportsCount = row.ReportsCount;
+        }
+        
+        return rows.Select(r => r.Location).ToList();
+    }
+
+    public async Task<Location?> Update(LocationUpdateDTO locationUpdateDto,
+        CancellationToken cancellationToken = default)
+    {
+        var toUpdate = await dbContext.Locations.FindAsync([locationUpdateDto.Id], cancellationToken);
+        if (toUpdate == null) return null;
+
+        toUpdate.Title = locationUpdateDto.Title ?? toUpdate.Title;
+        toUpdate.Coordinates = locationUpdateDto.Coordinates ?? toUpdate.Coordinates;
+        toUpdate.Type = locationUpdateDto.Type ?? toUpdate.Type;
+
+        return toUpdate;
+    }
+
+    public async Task<bool> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.SaveChangesAsync(cancellationToken) > 0;
+    }
+}

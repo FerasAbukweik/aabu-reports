@@ -39,9 +39,13 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<ITokensService, TokensService>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ILocationService, LocationService>();
+        services.AddScoped<IReportService, ReportService>();
         
         // add repositories
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<ILocationRepository, LocationRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
         
         // add background services
         services.AddHostedRemoveExpiredRefreshTokens();

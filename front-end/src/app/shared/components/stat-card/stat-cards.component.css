@@ -1,0 +1,15 @@
+.stat-card:hover {
+  border-color: color-mix(in oklab, var(--tone-main) 50%, transparent);
+}
+
+.stat-card:hover .stat-label {
+  color: var(--tone-text);
+}
+
+.stat-value {
+  color: var(--tone-main);
+}
+
+.stat-note {
+  color: var(--tone-text);
+}

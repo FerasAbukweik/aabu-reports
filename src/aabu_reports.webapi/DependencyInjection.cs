@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text;
 using aabu_reports.core.Constants;
 using aabu_reports.core.Interfaces.ServiceContracts;
@@ -60,9 +59,6 @@ public static class WebApiDependencyInjectionExtension
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromSeconds(30),
-                    NameClaimType = ClaimTypes.Name,
-                    RoleClaimType = ClaimTypes.Role
                 };
 
                 // read the access token from the cookie (an Authorization header still works and wins)

@@ -37,25 +37,33 @@
   --color-text-muted: #94a3b8;
   --color-text-inverse: #ffffff;
 
+  /* Status tokens: one group per member of the `Status` enum
+     (core/enums/status.enum.ts). `normal` has no group, see .tone-normal. */
+
   /* Status: Success */
   --color-status-success: #16a34a;
   --color-status-success-bg: #ecfdf5;
   --color-status-success-text: #065f46;
 
+  /* Status: Info */
+  --color-status-info: #0284c7;
+  --color-status-info-bg: #e0f2fe;
+  --color-status-info-text: #0369a1;
+
   /* Status: In Progress */
-  --color-status-progress: #0284c7;
-  --color-status-progress-bg: #e0f2fe;
-  --color-status-progress-text: #0369a1;
+  --color-status-in-progress: #0284c7;
+  --color-status-in-progress-bg: #e0f2fe;
+  --color-status-in-progress-text: #0369a1;
 
   /* Status: Warning */
   --color-status-warning: #d97706;
   --color-status-warning-bg: #fef3c7;
   --color-status-warning-text: #92400e;
 
-  /* Status: Danger */
-  --color-status-danger: #dc2626;
-  --color-status-danger-bg: #fef2f2;
-  --color-status-danger-text: #991b1b;
+  /* Status: Error */
+  --color-status-error: #dc2626;
+  --color-status-error-bg: #fef2f2;
+  --color-status-error-text: #991b1b;
 
   /* Map */
   --color-map-canvas: #f8fafc;
@@ -69,7 +77,7 @@
    Dark mode overrides (must live OUTSIDE @theme)
    ======================================================== */
 .dark,
-[data-theme="dark"] {
+[data-theme='dark'] {
   /* Brand / Primary */
   --color-primary: #3b82f6;
   --color-primary-hover: #60a5fa;
@@ -105,20 +113,25 @@
   --color-status-success-bg: #064e3b;
   --color-status-success-text: #6ee7b7;
 
+  /* Status: Info */
+  --color-status-info: #38bdf8;
+  --color-status-info-bg: #0c4a6e;
+  --color-status-info-text: #bae6fd;
+
   /* Status: In Progress */
-  --color-status-progress: #38bdf8;
-  --color-status-progress-bg: #0c4a6e;
-  --color-status-progress-text: #bae6fd;
+  --color-status-in-progress: #38bdf8;
+  --color-status-in-progress-bg: #0c4a6e;
+  --color-status-in-progress-text: #bae6fd;
 
   /* Status: Warning */
   --color-status-warning: #f59e0b;
   --color-status-warning-bg: #451a03;
   --color-status-warning-text: #fde68a;
 
-  /* Status: Danger */
-  --color-status-danger: #ef4444;
-  --color-status-danger-bg: #450a0a;
-  --color-status-danger-text: #fca5a5;
+  /* Status: Error */
+  --color-status-error: #ef4444;
+  --color-status-error-bg: #450a0a;
+  --color-status-error-text: #fca5a5;
 
   /* Map */
   --color-map-canvas: #0f172a;
@@ -131,11 +144,15 @@
 body {
   background-color: var(--color-surface-bg);
   color: var(--color-text-primary);
-  font-family: "Cairo", ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Cairo', ui-sans-serif, system-ui, sans-serif;
 }
 
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
 }
 
 @layer components {
@@ -162,7 +179,7 @@ body {
            focus-within:bg-surface-card focus-within:border-border-focus focus-within:shadow-md;
   }
   .field-wrapper.invalid {
-    @apply border-status-danger;
+    @apply border-status-error;
   }
   .field-input {
     @apply w-full bg-transparent px-4 py-3 text-text-primary placeholder:text-text-muted outline-none;
@@ -175,7 +192,7 @@ body {
            transition-colors focus:outline-none focus-visible:text-primary;
   }
   .field-error {
-    @apply text-xs text-status-danger mt-1;
+    @apply text-xs text-status-error mt-1;
   }
 
   /* Buttons */
@@ -213,7 +230,7 @@ body {
     @apply bg-surface-card-subtle text-text-secondary;
   }
   .info-box {
-    @apply flex items-start gap-2 rounded-lg p-3 text-sm bg-status-progress-bg text-status-progress-text;
+    @apply flex items-start gap-2 rounded-lg p-3 text-sm bg-status-info-bg text-status-info-text;
   }
   .link-accent {
     @apply text-accent-hover text-xs font-semibold hover:underline inline-flex items-center gap-1;
@@ -223,5 +240,74 @@ body {
   .otp-box {
     @apply h-11 w-full text-center text-xl font-bold rounded-lg bg-surface-card-subtle text-primary outline-none
            focus:bg-surface-card focus:shadow-md focus:ring-2 focus:ring-border-focus/30;
+  }
+}
+
+@layer components {
+  /* ---------- tone variables ----------
+     One class per member of the `Status` enum (core/enums/status.enum.ts).
+     The class name of each status comes from `statusClass()` in core/utils/status-class.ts,
+     keep both in sync. */
+  .tone-normal {
+    --tone-main: var(--color-map-building-stroke);
+    --tone-pin: var(--color-text-secondary);
+    --tone-bg: var(--color-surface-card-subtle);
+    --tone-border: var(--color-border-muted);
+    --tone-text: var(--color-text-secondary);
+  }
+  .tone-success {
+    --tone-main: var(--color-status-success);
+    --tone-bg: var(--color-status-success-bg);
+    --tone-text: var(--color-status-success-text);
+  }
+  .tone-info {
+    --tone-main: var(--color-status-info);
+    --tone-bg: var(--color-status-info-bg);
+    --tone-text: var(--color-status-info-text);
+  }
+  .tone-warning {
+    --tone-main: var(--color-status-warning);
+    --tone-bg: var(--color-status-warning-bg);
+    --tone-text: var(--color-status-warning-text);
+  }
+  .tone-error {
+    --tone-main: var(--color-status-error);
+    --tone-bg: var(--color-status-error-bg);
+    --tone-text: var(--color-status-error-text);
+  }
+  .tone-in-progress {
+    --tone-main: var(--color-status-in-progress);
+    --tone-bg: var(--color-status-in-progress-bg);
+    --tone-text: var(--color-status-in-progress-text);
+  }
+
+  /* ---------- svg ---------- */
+  .tone-stroke {
+    stroke: var(--tone-main);
+  }
+  .tone-pin {
+    fill: var(--tone-pin, var(--tone-main));
+  }
+  .tone-pulse {
+    fill: color-mix(in oklab, var(--tone-pin, var(--tone-main)) 40%, transparent);
+  }
+  .tone-badge-fill {
+    fill: var(--tone-bg);
+  }
+  .tone-badge-stroke {
+    stroke: var(--tone-border, var(--tone-main));
+  }
+  .tone-badge-text {
+    fill: var(--tone-text);
+  }
+
+  /* ---------- html ---------- */
+  .tone-chip {
+    background-color: var(--tone-bg);
+    color: var(--tone-text);
+    border-color: color-mix(in oklab, var(--tone-border, var(--tone-main)) 30%, transparent);
+  }
+  .tone-dot {
+    background-color: var(--tone-pin, var(--tone-main));
   }
 }

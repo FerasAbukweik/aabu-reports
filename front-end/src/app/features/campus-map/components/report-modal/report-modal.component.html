@@ -1,0 +1,143 @@
+<dialog
+  #dialog
+  dir="rtl"
+  lang="ar"
+  aria-labelledby="report-modal-title"
+  class="m-auto w-full max-w-2xl rounded-2xl bg-transparent p-0 text-text-primary backdrop:bg-text-primary/60 backdrop:backdrop-blur-sm"
+  (close)="modal.close()"
+  (click)="onBackdropClick($event)"
+>
+  <div class="overflow-hidden rounded-2xl border border-border-subtle bg-surface-card shadow-2xl">
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b-2 border-accent bg-primary px-6 py-4 text-on-primary">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/60 bg-on-primary/10 text-accent">
+          <span class="material-symbols-outlined text-[24px]" aria-hidden="true">report_problem</span>
+        </div>
+        <div>
+          <h3 id="report-modal-title" class="text-lg font-black">تقديم بلاغ صيانة جديد</h3>
+          <p class="text-xs text-on-primary/70">نموذج الإرسال المباشر لدائرة الصيانة والخدمات</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="flex h-10 w-10 items-center justify-center rounded-lg border border-on-primary/20 bg-on-primary/10 transition hover:bg-on-primary/20"
+        aria-label="إغلاق النافذة"
+        (click)="modal.close()"
+      >
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+      </button>
+    </div>
+
+    <form class="space-y-5 p-6" [formGroup]="form" (ngSubmit)="onSubmit()">
+      <!-- Location -->
+      <div class="flex items-center justify-between rounded-xl border border-status-in-progress/30 bg-status-in-progress-bg p-3.5">
+        <div class="flex items-center gap-2.5">
+          <span class="material-symbols-outlined text-[22px] text-status-in-progress-text" aria-hidden="true">pin_drop</span>
+          <div>
+            <span class="block text-[11px] font-bold text-text-secondary">الموقع المعتمد على الخريطة:</span>
+            @if (location(); as loc) {
+              <span class="text-sm font-black text-status-in-progress-text">{{ loc.title ?? 'موقع مخصص على الخريطة' }}</span>
+            } @else {
+              <span class="text-sm font-black text-status-error-text">لم يتم تحديد موقع بعد</span>
+            }
+          </div>
+        </div>
+        <button type="button" class="link-accent" (click)="modal.close()">
+          {{ location() ? 'تغيير الموقع من الخريطة' : 'اختر الموقع من الخريطة' }}
+        </button>
+      </div>
+
+      <!-- Severity -->
+      <fieldset>
+        <legend class="mb-2 block text-xs font-black">1. مستوى الخطورة والأولوية:</legend>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-status-error/30 bg-status-error-bg/50 p-3 text-center transition hover:bg-status-error-bg has-checked:border-status-error has-checked:bg-status-error-bg has-focus-visible:ring-2 has-focus-visible:ring-border-focus">
+            <input class="sr-only" type="radio" formControlName="severity" [value]="ReportSeverity.High" />
+            <span class="mb-1 h-3 w-3 rounded-full bg-status-error"></span>
+            <span class="text-xs font-black text-status-error-text">عالي / عاجل</span>
+            <span class="mt-0.5 text-[10px] text-status-error-text/80">خطر فوري على السلامة</span>
+          </label>
+
+          <label class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-status-warning/30 bg-status-warning-bg/50 p-3 text-center transition hover:bg-status-warning-bg has-checked:border-status-warning has-checked:bg-status-warning-bg has-focus-visible:ring-2 has-focus-visible:ring-border-focus">
+            <input class="sr-only" type="radio" formControlName="severity" [value]="ReportSeverity.Medium" />
+            <span class="mb-1 h-3 w-3 rounded-full bg-status-warning"></span>
+            <span class="text-xs font-black text-status-warning-text">متوسط</span>
+            <span class="mt-0.5 text-[10px] text-status-warning-text/80">عطل يؤثر على الاستخدام</span>
+          </label>
+
+          <label class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-border-subtle bg-surface-card-subtle p-3 text-center transition hover:bg-primary-container has-checked:border-primary has-checked:bg-primary-container has-focus-visible:ring-2 has-focus-visible:ring-border-focus">
+            <input class="sr-only" type="radio" formControlName="severity" [value]="ReportSeverity.Low" />
+            <span class="mb-1 h-3 w-3 rounded-full bg-text-muted"></span>
+            <span class="text-xs font-black">خفيف / دوري</span>
+            <span class="mt-0.5 text-[10px] text-text-secondary">ملاحظة عامة أو صيانة</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- Category -->
+      <fieldset>
+        <legend class="mb-2 block text-xs font-black">2. تصنيف نوع العطل:</legend>
+        <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+          @for (category of categories; track category) {
+            <label class="flex cursor-pointer items-center gap-2 rounded-xl border border-border-subtle bg-surface-card-subtle p-2.5 font-bold transition hover:border-primary has-checked:border-primary has-checked:bg-primary has-checked:text-on-primary has-focus-visible:ring-2 has-focus-visible:ring-border-focus">
+              <input class="accent-accent" type="radio" formControlName="category" [value]="category" />
+              <span>{{ reportCategoryLabel[category] }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <!-- Description -->
+      <div>
+        <label for="report-description" class="mb-1.5 block text-xs font-black">3. وصف المشكلة وتفاصيل الموقع:</label>
+        <textarea
+          id="report-description"
+          rows="3"
+          formControlName="description"
+          class="w-full rounded-xl border bg-surface-card-subtle p-3 text-xs font-medium text-text-primary outline-none transition placeholder:text-text-muted focus:border-border-focus focus:bg-surface-card focus:ring-2 focus:ring-border-focus/20"
+          [class.border-status-error]="form.controls.description.touched && form.controls.description.invalid"
+          [class.border-border-muted]="!(form.controls.description.touched && form.controls.description.invalid)"
+          placeholder="اكتب وصفاً موجزاً للمشكلة (مثال: عمود إنارة لا يعمل بالقرب من المدخل الغربي للمبنى)..."
+        ></textarea>
+        @if (form.controls.description.touched && form.controls.description.hasError('required')) {
+          <p class="field-error" role="alert">الرجاء كتابة وصف للمشكلة</p>
+        }
+      </div>
+
+      <!-- Attachment -->
+      <div>
+        <span class="mb-1.5 block text-xs font-black">4. صورة أو فيديو توثيقي للعطل:</span>
+        <label
+          for="report-file"
+          class="group relative block cursor-pointer rounded-xl border-2 border-dashed border-accent/50 bg-accent-light/50 p-4 text-center transition hover:border-accent hover:bg-accent-light has-focus-visible:ring-2 has-focus-visible:ring-border-focus"
+        >
+          <input #fileInput id="report-file" class="sr-only" type="file" accept="image/*,video/*" (change)="onFileSelected($event)" />
+          <span class="flex flex-col items-center justify-center space-y-1">
+            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-card text-accent shadow-sm transition group-hover:scale-110">
+              <span class="material-symbols-outlined text-[24px]" aria-hidden="true">cloud_upload</span>
+            </span>
+            @if (attachment(); as file) {
+              <span class="text-xs font-bold text-status-success-text">تم إرفاق: {{ file.name }} ({{ formatSize(file) }})</span>
+            } @else {
+              <span class="text-xs font-bold">انقر لإرفاق صورة واضحة للعطل</span>
+            }
+            <span class="text-[11px] text-text-secondary">يدعم الصور والفيديو حتى 25 ميجابايت</span>
+          </span>
+        </label>
+        @if (attachmentError(); as error) {
+          <p class="field-error" role="alert">{{ error }}</p>
+        }
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center justify-end gap-3 border-t border-border-subtle pt-4">
+        <button type="button" class="btn btn-subtle px-4 py-2.5 text-xs" (click)="modal.close()">إلغاء وعودة للخريطة</button>
+        <button type="submit" class="btn btn-primary px-6 py-2.5 text-xs" [disabled]="!location() || submitting()">
+          <span>{{ submitting() ? 'جارٍ الإرسال...' : 'إرسال البلاغ' }}</span>
+          <span class="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">send</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</dialog>

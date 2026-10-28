@@ -1,5 +1,6 @@
 using aabu_reports.core.Common;
 using aabu_reports.core.DTOs.Account;
+using aabu_reports.core.DTOs.Auth;
 
 namespace aabu_reports.core.Interfaces.ServiceContracts;
 

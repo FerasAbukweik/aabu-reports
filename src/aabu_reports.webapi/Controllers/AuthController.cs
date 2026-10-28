@@ -1,4 +1,4 @@
-using aabu_reports.core.DTOs.Account;
+using aabu_reports.core.DTOs.Auth;
 using aabu_reports.core.Interfaces.ServiceContracts;
 using aabu_reports.webapi.ExtensionMethods;
 using aabu_reports.webapi.Filters;

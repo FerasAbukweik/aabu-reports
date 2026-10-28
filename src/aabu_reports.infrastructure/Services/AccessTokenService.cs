@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using aabu_reports.core.Common;
 using aabu_reports.core.Constants;
+using aabu_reports.core.DTOs.Auth;
 using aabu_reports.core.Entities.Identity;
 using aabu_reports.core.Interfaces.ServiceContracts;
 using Microsoft.AspNetCore.Identity;
@@ -18,14 +19,14 @@ public class AccessTokenService(
     UserManager<ApplicationUser> userManager,
     IOptions<JwtOptions> jwtOptions) : IAccessTokenService
 {
-    public async Task<Result<string>> GenerateAccessTokenAsync(ApplicationUser user, CancellationToken cancellationToken = default)
+    public async Task<Result<AccessTokenDTO>> GenerateAccessTokenAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
         // make sure user have username and email
         if (user.UserName == null || user.Email == null)
         {
             logger.LogWarning("{ServiceName}.{MethodName} user with Id: {UserId} failed creating access token because of missing username or email", 
                 nameof(AccessTokenService), nameof(GenerateAccessTokenAsync), user.Id.ToString());
-            return Result<string>.Failure("user missing username or email");
+            return Result<AccessTokenDTO>.Failure("user missing username or email");
         }
 
         // claims
@@ -48,7 +49,7 @@ public class AccessTokenService(
         {
             logger.LogWarning("{ServiceName}.{MethodName} user with Id: {UserId} tried creating access token while having no roles",
                 nameof(AccessTokenService), nameof(GenerateAccessTokenAsync), user.Id.ToString());
-            return Result<string>.Failure("user has no roles");
+            return Result<AccessTokenDTO>.Failure("user has no roles");
         }
         
         // add roles to claims
@@ -59,22 +60,28 @@ public class AccessTokenService(
         {
             logger.LogError("{ServiceName}.{MethodName} failed: JWT signing key is not configured.",
                 nameof(AccessTokenService), nameof(GenerateAccessTokenAsync));
-            return Result<string>.Failure("Token configuration error.", HttpStatusCode.InternalServerError);
+            return Result<AccessTokenDTO>.Failure("Token configuration error.", HttpStatusCode.InternalServerError);
         }
         
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Value.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var expiresAt = DateTime.UtcNow.AddSeconds(jwtOptions.Value.AccessTokenLifeTimeInSeconds);
+        
         var token = new JwtSecurityToken(
             issuer: jwtOptions.Value.Issuer,
             audience: jwtOptions.Value.Audience,
             claims: claims,
             signingCredentials: creds,
-            expires: DateTime.UtcNow.AddSeconds(jwtOptions.Value.AccessTokenLifeTimeInSeconds)
+            expires: expiresAt
         );
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-        return Result<string>.Success(tokenString);
+        return Result<AccessTokenDTO>.Success(new AccessTokenDTO
+        {
+            AccessToken = tokenString,
+            ExpiresAt = expiresAt
+        });
     }
 }

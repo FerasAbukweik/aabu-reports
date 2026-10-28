@@ -2,6 +2,7 @@ using aabu_reports;
 using aabu_reports.core;
 using aabu_reports.infrastructure;
 using aabu_reports.webapi;
+using aabu_reports.webapi.ExtensionMethods;
 using aabu_reports.webapi.Middlewares;
 using Scalar.AspNetCore;
 using Serilog;
@@ -40,4 +41,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+await app.Services.SeedAdminAsync(app.Configuration);
+
 app.Run();

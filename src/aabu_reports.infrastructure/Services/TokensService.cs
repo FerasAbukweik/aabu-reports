@@ -27,8 +27,8 @@ public class TokensService(
 
         return Result<AuthResponseDto>.Success(new AuthResponseDto
         {
-            AccessToken = accessToken.Value!,
-            AccessTokenExpiresAt = DateTime.UtcNow.AddSeconds(jwtOptions.Value.AccessTokenLifeTimeInSeconds),
+            AccessToken = accessToken.Value!.AccessToken,
+            AccessTokenExpiresAt = accessToken.Value!.ExpiresAt,
             RefreshToken = refreshTokenEntity.RefreshTokenString,
             RefreshTokenExpiresAt = refreshTokenEntity.ExpiresAt
         });

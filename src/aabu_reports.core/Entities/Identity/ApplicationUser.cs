@@ -20,5 +20,7 @@ public class ApplicationUser : IdentityUser<Guid>
     
     // relations
     public List<RefreshToken> RefreshTokens { get; set; } = new();
-    
+
+    public List<Report> Reports { get; set; } = new();
+
 }

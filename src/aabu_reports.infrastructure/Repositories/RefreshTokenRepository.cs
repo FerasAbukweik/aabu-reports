@@ -30,6 +30,7 @@ public class RefreshTokenRepository(
     public async Task<RefreshToken?> GetByTokenAsync(string refreshTokenString, CancellationToken cancellationToken = default)
     {
         return await dbContext.RefreshTokens
+            .AsNoTracking()
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.RefreshTokenString == refreshTokenString, cancellationToken);
     }

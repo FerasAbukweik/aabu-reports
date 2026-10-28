@@ -1,0 +1,131 @@
+<section
+  aria-label="خريطة الحرم الجامعي"
+  class="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-card shadow-sm"
+>
+  <div
+    class="relative h-[68svh] min-h-[420px] flex-1 overflow-hidden bg-map-canvas lg:h-auto lg:min-h-[580px]"
+  >
+    <!-- Legend -->
+    <details
+      class="absolute start-3 top-3 z-20 max-w-[16rem] rounded-xl border border-border-subtle bg-surface-card/95 shadow-lg backdrop-blur-md sm:start-4 sm:top-4"
+    >
+      <summary
+        class="flex min-h-11 cursor-pointer items-center gap-1.5 px-3 text-xs font-extrabold text-primary"
+      >
+        <span class="material-symbols-outlined text-[18px] text-accent" aria-hidden="true"
+          >layers</span
+        >
+        دليل رموز الخريطة
+      </summary>
+      <div class="space-y-1.5 border-t border-border-subtle p-3 text-xs text-text-secondary">
+        @for (item of legendItems(); track item.status) {
+          <div class="flex items-center justify-between gap-4">
+            <span class="flex items-center gap-2">
+              <span
+                class="tone-dot h-3 w-3 rounded-full"
+                [class]="locationStatusTone[item.status]"
+              ></span>
+              {{ locationStatusLabel[item.status] }}
+            </span>
+            <span class="font-mono text-[10px] text-text-muted">{{ item.count }}</span>
+          </div>
+        }
+        <div class="flex items-center gap-2 border-t border-border-subtle pt-1.5">
+          <span class="h-3 w-3 rounded-[50%_50%_50%_0] -rotate-45 bg-map-selected"></span>
+          الموقع المحدد / دبوس مخصص
+        </div>
+      </div>
+    </details>
+
+    <!-- Controls -->
+    <div
+      class="absolute bottom-3 end-3 z-20 flex flex-col gap-1 rounded-xl border border-border-subtle bg-surface-card/95 p-1.5 shadow-lg backdrop-blur-md sm:bottom-4 sm:end-4"
+    >
+      <button
+        type="button"
+        class="flex h-11 w-11 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-card-subtle sm:h-9 sm:w-9"
+        aria-label="إعادة ضبط العرض"
+        title="إعادة ضبط العرض"
+        (click)="resetZoom()"
+      >
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">fit_screen</span>
+      </button>
+      <button
+        type="button"
+        class="flex h-11 w-11 items-center justify-center rounded-lg text-primary hover:bg-primary-container sm:h-9 sm:w-9"
+        aria-label="حدد موقعي الحالي"
+        title="حدد موقعي الحالي"
+        (click)="locateMe()"
+      >
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">my_location</span>
+      </button>
+    </div>
+
+    <!-- Selection chip (small screens only) -->
+    @if (selectedItem(); as sel) {
+      <div
+        class="absolute bottom-3 end-[4.5rem] start-3 z-20 flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-card/95 p-1.5 ps-3 shadow-lg backdrop-blur-md sm:end-20 lg:hidden"
+      >
+        <span class="material-symbols-outlined text-[20px] text-map-selected" aria-hidden="true"
+          >location_on</span
+        >
+        <span class="min-w-0 flex-1 truncate text-xs font-extrabold text-primary">{{
+          sel.title
+        }}</span>
+        <button
+          type="button"
+          class="min-h-11 shrink-0 rounded-lg bg-primary px-3 text-xs font-bold text-on-primary"
+          (click)="detailsRequested.emit()"
+        >
+          التفاصيل
+        </button>
+      </div>
+    }
+
+    <!-- Map -->
+    <div
+      #canvas
+      class="absolute inset-0"
+      role="application"
+      aria-roledescription="خريطة تفاعلية"
+      aria-label="خريطة الحرم. اسحب للتحريك، وانقر على أي مبنى لاختياره."
+    ></div>
+
+    <!-- Loading / error -->
+    @if (failed()) {
+      <div
+        class="absolute inset-0 z-30 flex items-center justify-center bg-map-canvas/95 p-6"
+        role="alert"
+      >
+        <div
+          class="max-w-sm space-y-3 rounded-2xl border border-border-subtle bg-surface-card p-5 text-center shadow-lg"
+        >
+          <h3 class="text-sm font-black text-primary">تعذر تحميل خريطة Google</h3>
+          <p class="text-xs leading-6 text-text-secondary">
+            تأكد من اتصال الإنترنت ثم أعد المحاولة.
+          </p>
+          <button
+            type="button"
+            class="min-h-11 rounded-lg bg-primary px-4 text-xs font-bold text-on-primary"
+            (click)="retry()"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      </div>
+    } @else if (state() === 'loading') {
+      <div
+        class="absolute inset-0 z-10 flex items-center justify-center bg-map-canvas text-xs font-bold text-text-secondary"
+        role="status"
+      >
+        جاري تحميل الخريطة...
+      </div>
+    }
+  </div>
+
+  <p
+    class="border-t border-border-subtle bg-surface-card-subtle px-5 py-3 text-xs text-text-secondary"
+  >
+    اسحب لتحريك الخريطة، وانقر على أي مبنى لاختياره أو على أي مكان لوضع دبوس مخصص.
+  </p>
+</section>
