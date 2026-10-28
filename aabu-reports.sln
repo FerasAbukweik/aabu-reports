@@ -6,15 +6,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.env = .env
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "aabu_reports.webapi", "src\aabu_reports.webapi\aabu_reports.webapi.csproj", "{3FDB52F4-24D3-40B5-BD18-25F183C565DB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AabuReports.Webapi", "src\AabuReports.Webapi\AabuReports.Webapi.csproj", "{3FDB52F4-24D3-40B5-BD18-25F183C565DB}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{833DD832-25C2-43A0-BA6B-BE27965032C9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{DA039DF8-17D4-49F8-B5EB-7BA883CF8A1E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "aabu_reports.infrastructure", "src\aabu_reports.infrastructure\aabu_reports.infrastructure.csproj", "{6561327C-4514-4484-B281-23CB45411B94}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AabuReports.Infrastructure", "src\AabuReports.Infrastructure\AabuReports.Infrastructure.csproj", "{6561327C-4514-4484-B281-23CB45411B94}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "aabu_reports.core", "src\aabu_reports.core\aabu_reports.core.csproj", "{5CBB127B-3C25-41BA-ADE1-2A6B9B2451A7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AabuReports.Core", "src\AabuReports.Core\AabuReports.Core.csproj", "{5CBB127B-3C25-41BA-ADE1-2A6B9B2451A7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

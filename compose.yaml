@@ -1,9 +1,9 @@
 ﻿services:
   aabu_reports:
-    container_name: aabu_reports.webapi
+    container_name: AabuReports.Webapi
     build:
       context: .
-      dockerfile: src/aabu_reports.webapi/Dockerfile
+      dockerfile: src/AabuReports.Webapi/Dockerfile
       args:
         BUILD_CONFIGURATION: ${ASPNETCORE_ENVIRONMENT}
     ports:
@@ -26,7 +26,7 @@
         
         
   mssql-service:
-    container_name: aabu_reports.mssql-server
+    container_name: AabuReports.mssql-server
     image: mcr.microsoft.com/mssql/server:2025-latest
     ports:
       - 1433:1433
@@ -45,7 +45,7 @@
       
       
   seq:
-    container_name: aabu_reports.seq
+    container_name: AabuReports.seq
     image: datalust/seq
     environment:
       - ACCEPT_EULA=Y
