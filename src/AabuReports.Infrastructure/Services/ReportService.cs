@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using System.Net;
 using AabuReports.Core.Abstractions.Repositories;
 using AabuReports.Core.Abstractions.Services;
-using AabuReports.Core.Dtos.Images;
 using AabuReports.Core.Dtos.LazyLoading;
 using AabuReports.Core.Dtos.Reports;
 using AabuReports.Core.Entities;
@@ -103,7 +102,7 @@ public class ReportService(
         var location = await locationRepository.GetByIdAsync(reportData.LocationId, cancellationToken);
         if (location is null)
             return Result<ReportCreateResponseDto>.Failure(LocationNotFoundMessage, HttpStatusCode.NotFound);
-
+        
         return await CreateReportAsync(userId, location, reportData, cancellationToken);
     }
     public async Task<Result<ReportCreateResponseDto>> CreateForCoordinates(Guid userId, ReportCreateForCoordinatesDto reportData, CancellationToken cancellationToken = default)
@@ -113,8 +112,6 @@ public class ReportService(
             Coordinates = reportData.Coordinates,
             Title = "موقع مخصص",
             Type = LocationType.Pin,
-            State = ReportStateEnum.Pending,
-            ReportsCount = 1
         };
         locationRepository.AddLocation(newLocation);
 
@@ -191,7 +188,7 @@ public class ReportService(
 
 
     // private
-    private async Task<Result<ReportCreateResponseDto>> CreateReportAsync(Guid userId, Location location, ReportCreateDto newReportData, CancellationToken cancellationToken  = default)
+    private async Task<Result<ReportCreateResponseDto>> CreateReportAsync(Guid userId, Location location, ReportCreateDto newReportData, CancellationToken cancellationToken = default)
     {
         var newReport = new Report
         {
@@ -206,19 +203,12 @@ public class ReportService(
 
         reportRepository.AddReport(newReport);
 
-        IReadOnlyList<ImageDto> images = [];
-
         if (newReportData.Images.Count > 0)
         {
-            // the report (and its new location, if any) is only in the memory at this point.
-            // the image service checks the files first, uploads to Cloudinary as its very last step,
-            // then saves the report, the location and the images together with one SaveChanges,
-            // so nothing is uploaded if something fails before it, and the upload is undone if the save fails
             var imagesResult = await imageService.UploadForReportAsync(newReport.Id, newReportData.Images, cancellationToken);
             if (!imagesResult.IsSuccess)
                 return imagesResult.MapFailure<ReportCreateResponseDto>();
 
-            images = imagesResult.Value!;
         }
         else if (!await reportRepository.SaveChangesAsync(cancellationToken))
         {
@@ -231,6 +221,11 @@ public class ReportService(
 
         await NotifyOwnerAsync(userId, NotificationType.ReportReceived, ReceivedNotificationMessage, location.Title, newReport.Id, cancellationToken);
 
+        // for the DTO
+        location.ActiveReportsCount = (location.ActiveReportsCount ?? 0) + 1;
+        if (location.State is null || (int)location.State.Value < (int)ReportStateEnum.Pending)
+            location.State = ReportStateEnum.Pending;
+        
         return Result<ReportCreateResponseDto>.Success(new ReportCreateResponseDto()
         {
             Location = location.ToDto(),

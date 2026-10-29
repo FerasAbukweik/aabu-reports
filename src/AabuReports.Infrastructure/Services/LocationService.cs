@@ -60,7 +60,7 @@ public class LocationService(
         if (newLocation.Type == LocationType.Building)
         {
             newLocation.State = ReportStateEnum.Normal;
-            newLocation.ReportsCount = 0;
+            newLocation.ActiveReportsCount = 0;
         }
         return Result<LocationDto>.Success(newLocation.ToDto(), HttpStatusCode.Created);
     }

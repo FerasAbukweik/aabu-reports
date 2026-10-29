@@ -1,5 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input, model, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  model,
+  output,
+} from '@angular/core';
 import { FilterConfig, FilterValues } from './search-filter-bar.model';
+import { Router, ActivatedRoute } from '@angular/router';
 
 /**
  * A search box + dropdown filters + a reset button. It only holds the values: the page filters its own data
@@ -14,6 +23,10 @@ import { FilterConfig, FilterValues } from './search-filter-bar.model';
   host: { class: 'block' },
 })
 export class SearchFilterBarComponent {
+  // DI
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
   // input
   readonly placeholder = input('بحث...');
   readonly searchLabel = input('بحث');
@@ -52,5 +65,16 @@ export class SearchFilterBarComponent {
     this.query.set('');
     this.values.set({});
     this.filtersReset.emit();
+    this.clearLocationParam();
+  }
+
+  /** drops `?l_id=` from the address bar without reloading or adding a history entry */
+  private clearLocationParam(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {},
+      queryParamsHandling: 'replace',
+      replaceUrl: true,
+    });
   }
 }

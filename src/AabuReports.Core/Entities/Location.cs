@@ -22,7 +22,7 @@ public class Location
 
     // not recognized by EF
     public ReportStateEnum? State { get; set; }
-    public int? ReportsCount { get; set; }
+    public int? ActiveReportsCount { get; set; }
 
 
     // relations
@@ -34,7 +34,7 @@ public class Location
     // to DTO
     public LocationDto ToDto()
     {
-        if(this.State == null || this.ReportsCount == null) throw new Exception("State or report count is null");
+        if(this.State == null || this.ActiveReportsCount == null) throw new Exception("State or report count is null");
         return new LocationDto
         {
             Id = this.Id,
@@ -42,7 +42,7 @@ public class Location
             Status = this.State.Value,
             Title = this.Title,
             Type = this.Type,
-            ReportsCount = this.ReportsCount.Value
+            ActiveReportsCount = this.ActiveReportsCount.Value
         };
     }
     
@@ -58,10 +58,12 @@ public class Location
     {
         if(obj is not Location other) return false;
 
+        var precision = 6;
+        
         return Id == other.Id &&
                Title == other.Title &&
-               Coordinates.Lat == other.Coordinates.Lat &&
-               Coordinates.Lng == other.Coordinates.Lng &&
+               Math.Round(Coordinates.Lat, precision) == Math.Round(other.Coordinates.Lat, precision) &&
+               Math.Round(Coordinates.Lng, precision) == Math.Round(other.Coordinates.Lng, precision) &&
                Type == other.Type;
     }
 }

@@ -6,8 +6,10 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { map } from 'rxjs';
 import { ReportFilterDTO } from '../../core/DTOs/report/report-filter-dto';
 import { ReportCategory } from '../../core/enums/report-category.enum';
 import { ReportState } from '../../core/enums/report-state.enum';
@@ -15,57 +17,26 @@ import { Status } from '../../core/enums/status.enum';
 import { TableReportRow } from '../../core/interfaces/table-row';
 import { toReportTableRow } from '../../core/utils/table-utils';
 import { ReportsTableService } from '../../core/services/api-services/reports-table.service';
-import { locationStatusLabel } from '../../core/utils/location-util';
-import { REPORT_CATEGORIES, reportCategoryLabel } from '../../core/utils/report-category-utils';
 import { ReportsTableComponent } from './components/reports-table/reports-table.component';
 import { SearchFilterBarComponent } from './components/search-filter-bar/search-filter-bar.component';
-import {
-  FilterConfig,
-  FilterValues,
-} from './components/search-filter-bar/search-filter-bar.model';
+import { FilterValues } from './components/search-filter-bar/search-filter-bar.model';
 import { StatCardsComponent } from '../../shared/components/stat-card/stat-cards.component';
 import { StatCard } from '../../shared/components/stat-card/stat-card.model';
 import { ReportDeleteModalComponent } from './components/report-delete-modal/report-delete-modal.component';
 import { ReportRatingModalComponent } from './components/report-rating-modal/report-rating-modal.component';
 import { ReportStateModalComponent } from './components/report-state-modal/report-state-modal.component';
+import { FILTERS } from './reports-history.data';
+import { HistoryFilterForm } from './report-history.model';
 
-/** the states a report can be in (a report is never "normal", that one is only for locations without reports) */
-const REPORT_STATES: readonly ReportState[] = [
-  ReportState.Pending,
-  ReportState.InProgress,
-  ReportState.Fixed,
-  ReportState.NeedsFollowUp,
-];
+/** the raw value of the filters form (an empty string is "all" / "not set") */
 
-const FILTERS: readonly FilterConfig[] = [
-  {
-    key: 'state',
-    label: 'تصفية حسب الحالة',
-    icon: 'tune',
-    allLabel: 'جميع الحالات',
-    options: REPORT_STATES.map((state) => ({
-      value: String(state),
-      label: locationStatusLabel[state],
-    })),
-  },
-  {
-    key: 'category',
-    label: 'تصفية حسب التصنيف',
-    icon: 'category',
-    allLabel: 'كل التصنيفات',
-    options: REPORT_CATEGORIES.map((category) => ({
-      value: String(category),
-      label: reportCategoryLabel[category],
-    })),
-  },
-];
-
-/** the search text and the picked dropdown values -> the filters of the api (an empty value is "all" and is left out) */
-function toFilter(query: string, { state, category }: FilterValues): ReportFilterDTO {
+/** the value of the filters form -> the filters of the api (an empty value is "all" and is left out) */
+function toFilter({ query, state, category, locationId }: HistoryFilterForm): ReportFilterDTO {
   return {
     search: query.trim() || undefined,
     state: state ? (Number(state) as ReportState) : undefined,
     category: category ? (Number(category) as ReportCategory) : undefined,
+    locationId: locationId || undefined,
   };
 }
 
@@ -84,10 +55,12 @@ function toFilter(query: string, { state, category }: FilterValues): ReportFilte
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportsHistoryComponent {
+  private readonly fb = inject(FormBuilder);
   private readonly reportsTable = inject(ReportsTableService);
   private readonly destroyRef = inject(DestroyRef);
   /** the admin route (admin/history) sets `isAdmin` in its data: the table then holds everyone's reports */
   protected readonly isAdmin = inject(ActivatedRoute).snapshot.data['isAdmin'] === true;
+  protected readonly queryParams = inject(ActivatedRoute).snapshot.queryParams;
 
   // protected: filters setup
   protected readonly filters = FILTERS;
@@ -101,27 +74,56 @@ export class ReportsHistoryComponent {
   protected readonly hasLoadFailed = this.reportsTable.hasLoadFailed;
 
   // filters
-  protected readonly query = signal('');
-  /** what the search box and the dropdowns show right now (not sent to the api until the apply button is pressed) */
-  protected readonly filterValues = signal<FilterValues>({});
-  /** the filters the table is loaded with */
-  private readonly appliedFilter = signal<ReportFilterDTO>({});
-
-  private readonly hasAppliedFilter = computed(() => {
-    const { search, state, category } = this.appliedFilter();
-
-    return search !== undefined || state !== undefined || category !== undefined;
+  /**
+   * what the search box and the dropdowns show right now (not sent to the api until the apply button is pressed).
+   * `locationId` is the location the map page sent us here with (`?l_id=`), it is applied from the first load
+   */
+  protected readonly form = this.fb.nonNullable.group<HistoryFilterForm>({
+    query: '',
+    state: '',
+    category: '',
+    locationId: this.queryParams['l_id'] ?? '',
   });
 
-  /** the search box or the dropdowns show other filters than the table is loaded with: the apply button is enabled */
+  /** the form as a signal, so the computed values below and the OnPush template follow every change */
+  private readonly formValue = toSignal(
+    this.form.valueChanges.pipe(map(() => this.form.getRawValue())),
+    { initialValue: this.form.getRawValue() },
+  );
+
+  protected readonly query = computed(() => this.formValue().query);
+
+  /** the dropdown values in the shape the filter bar expects */
+  protected readonly filterValues = computed<FilterValues>(() => {
+    const { state, category, locationId } = this.formValue();
+
+    return { state, category, locationId };
+  });
+
+  /** the filters the table is loaded with */
+  private readonly appliedFilter = signal<ReportFilterDTO>(toFilter(this.form.getRawValue()));
+
+  private readonly hasAppliedFilter = computed(() => {
+    const { search, state, category, locationId } = this.appliedFilter();
+
+    return (
+      search !== undefined ||
+      state !== undefined ||
+      category !== undefined ||
+      locationId !== undefined
+    );
+  });
+
+  /** the search box, the dropdowns or the location differ from what the table is loaded with: the apply button is enabled */
   protected readonly hasUnappliedChanges = computed(() => {
-    const picked = toFilter(this.query(), this.filterValues());
+    const picked = toFilter(this.formValue());
     const applied = this.appliedFilter();
 
     return (
       picked.search !== applied.search ||
       picked.state !== applied.state ||
-      picked.category !== applied.category
+      picked.category !== applied.category ||
+      picked.locationId !== applied.locationId
     );
   });
 
@@ -135,8 +137,9 @@ export class ReportsHistoryComponent {
     // before any load: the service is shared, so it is set on the user page too (false)
     this.reportsTable.setAllReports(this.isAdmin);
 
-    // no filters and no cached pages: they may be old (a report was sent from the map, or its state changed, since the last visit)
-    this.reportsTable.setFilter({});
+    // no cached pages: they may be old (a report was sent from the map, or its state changed, since the last visit).
+    // the location of the map page (if any) is already part of the applied filter
+    this.reportsTable.setFilter(this.appliedFilter());
 
     // the history stats cards (the numbers stay empty until the request is done)
     this.reportsTable
@@ -158,13 +161,18 @@ export class ReportsHistoryComponent {
     const stats = this.stats();
 
     // the total of the stats counts every report, so it is only right while no filter is applied
-    if (stats && !this.hasAppliedFilter()) return Math.max(1, Math.ceil(stats.totalReportsCount / this.reportsTable.pageSize));
+    if (stats && !this.hasAppliedFilter())
+      return Math.max(1, Math.ceil(stats.totalReportsCount / this.reportsTable.pageSize));
 
-    return this.page() + (this.reportsTable.reports().length === this.reportsTable.pageSize ? 1 : 0);
+    return (
+      this.page() + (this.reportsTable.reports().length === this.reportsTable.pageSize ? 1 : 0)
+    );
   });
 
   /** the reports of the page on the screen (the search and the filters are applied by the api) */
-  protected readonly rows = computed<TableReportRow[]>(() => this.reportsTable.reports().map(toReportTableRow));
+  protected readonly rows = computed<TableReportRow[]>(() =>
+    this.reportsTable.reports().map(toReportTableRow),
+  );
 
   protected readonly resultsLabel = computed(() => `${this.rows().length}`);
 
@@ -195,7 +203,10 @@ export class ReportsHistoryComponent {
   protected readonly statCards = computed<StatCard[]>(() => {
     const s = this.stats();
     const dash = '—';
-    const completionRate = s && s.totalReportsCount > 0 ? Math.round((s.completedReportsCount / s.totalReportsCount) * 100) : null;
+    const completionRate =
+      s && s.totalReportsCount > 0
+        ? Math.round((s.completedReportsCount / s.totalReportsCount) * 100)
+        : null;
 
     return [
       {
@@ -213,7 +224,11 @@ export class ReportsHistoryComponent {
         unit: 'حالات نشطة',
         icon: 'engineering',
         status: Status.InProgress,
-        note: !s ? undefined : s.inProgressReportsCount > 0 ? 'فرق الصيانة تعمل عليها الآن' : 'لا توجد أعمال جارية حاليًا',
+        note: !s
+          ? undefined
+          : s.inProgressReportsCount > 0
+            ? 'فرق الصيانة تعمل عليها الآن'
+            : 'لا توجد أعمال جارية حاليًا',
         notePulse: !!s && s.inProgressReportsCount > 0,
       },
       {
@@ -252,17 +267,30 @@ export class ReportsHistoryComponent {
       });
   }
 
-  /** Loads the table again from the first page with the search text and the filters of the dropdowns (the service forgets the cached pages). */
+  /** the filter bar emitted a new search text */
+  protected onQueryChange(query: string): void {
+    this.form.controls.query.setValue(query);
+  }
+
+  /** the filter bar emitted new dropdown values (a missing key is "all") */
+  protected onValuesChange({ state, category }: FilterValues): void {
+    this.form.patchValue({ state: state ?? '', category: category ?? '' });
+  }
+
+  /** Loads the table again from the first page with the search text, the filters of the dropdowns and the location (the service forgets the cached pages). */
   protected applyFilters(): void {
-    const filter = toFilter(this.query(), this.filterValues());
+    const filter = toFilter(this.form.getRawValue());
 
     this.appliedFilter.set(filter);
     this.reportsTable.setFilter(filter);
     this.goToPage(1);
   }
 
-  /** The reset button emptied the search box and the dropdowns: the table follows, unless it already shows everything. */
+  /** The reset button emptied the search box and the dropdowns: the location of the map page is dropped too, then the table follows unless it already shows everything. */
   protected onFiltersReset(): void {
+    // not `reset()`: a non-nullable control goes back to its initial value, and that is the `l_id` of the map page
+    this.form.controls.locationId.setValue('');
+
     if (this.hasUnappliedChanges()) this.applyFilters();
   }
 

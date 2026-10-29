@@ -46,10 +46,10 @@ export class LocationService {
 
   /** Adds a location, or replaces it when it is already in the list (no request to the api). */
   public upsert(location: LocationDTO): void {
-    this._locations.update((list) =>
-      list.some((l) => l.id === location.id)
-        ? list.map((l) => (l.id === location.id ? location : l))
-        : [...list, location],
+    this._locations.update((curr) =>
+      curr.some((l) => l.id === location.id)
+        ? curr.map((l) => (l.id === location.id ? location : l))
+        : [location, ...curr],
     );
   }
 
@@ -57,13 +57,12 @@ export class LocationService {
    * Creates a location (POST /location, admin only). The api answers with no body,
    * so the list is reloaded to get the new location with its id.
    */
-  public create(locationCreateDTO: LocationCreateDTO): Observable<void> {
+  public create(locationCreateDTO: LocationCreateDTO): Observable<LocationDTO> {
     return this.locationApi
       .create({ ...locationCreateDTO, title: locationCreateDTO.title.trim() })
       .pipe(
         toastError(this.toast, 'تعذر إضافة الموقع', (e) => this.errorMessage(e, 'create')),
-        tap({next: (newL) => this._locations.update(curr => [newL, ...curr])}),
-        map(() => undefined)
+        tap({ next: (newL) => this._locations.update((curr) => [newL, ...curr]) }),
       );
   }
 
@@ -89,7 +88,10 @@ export class LocationService {
   }
 
   // private
-  private errorMessage(error: HttpErrorResponse, action: 'load' | 'create' | 'update' | 'delete'): string {
+  private errorMessage(
+    error: HttpErrorResponse,
+    action: 'load' | 'create' | 'update' | 'delete',
+  ): string {
     switch (error.status) {
       case 400:
         return 'تحقق من بيانات الموقع ثم حاول مرة أخرى';

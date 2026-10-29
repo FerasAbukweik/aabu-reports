@@ -11,12 +11,10 @@ namespace AabuReports.Infrastructure.Services;
 
 public class ImageService(
     IImageRepository imageRepository,
-    IReportRepository reportRepository,
     ICloudinaryService cloudinaryService,
     ILogger<ImageService> logger) : IImageService
 {
     private const string ImageNotFoundMessage = "Image not found";
-    private const string ReportNotFoundMessage = "Report not found";
     private const string NoImagesMessage = "No images were sent";
     private const string NotAnImageMessage = "Only non-empty image files are allowed";
     private const string CloudinaryDeleteFailedMessage = "Failed to delete the images from the image storage";
@@ -30,10 +28,6 @@ public class ImageService(
 
         if (images.Any(i => i.Length == 0 || !i.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)))
             return Result<IReadOnlyList<ImageDto>>.Failure(NotAnImageMessage);
-
-        var report = await reportRepository.GetTrackedByIdAsync(reportId, cancellationToken);
-        if (report is null)
-            return Result<IReadOnlyList<ImageDto>>.Failure(ReportNotFoundMessage, HttpStatusCode.NotFound);
 
         // last step: upload to Cloudinary (saving to the DB needs the url and the public id it returns)
         var uploads = await Task.WhenAll(images.Select(cloudinaryService.Upload));
@@ -55,7 +49,7 @@ public class ImageService(
         {
             Url = u.SecureUrl.ToString(),
             PublicId = u.PublicId,
-            ReportId = report.Id
+            ReportId = reportId
         }).ToList();
 
         imageRepository.AddRange(newImages);
@@ -68,7 +62,6 @@ public class ImageService(
             await RollbackUploadsAsync(uploadedPublicIds);
             return Result<IReadOnlyList<ImageDto>>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
-        
         
         return Result<IReadOnlyList<ImageDto>>.Success(
             newImages.Select(i => i.ToDto()).ToList(),

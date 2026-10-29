@@ -78,4 +78,4 @@
   <app-stat-cards [cards]="statCards()" ariaLabel="إحصائيات الصيانة وسرعة الاستجابة" />
 </div>
 
-<app-report-modal />
+<app-report-modal [locationId]="reportLocationId()" (closed)="reportLocationId.set(null)" />

@@ -40,7 +40,7 @@ export class MapViewService {
       coordinates: selection.droppedPin,
       status: ReportState.Normal,
       type: LocationTypeEnum.Pin,
-      reportsCount: 0,
+      activeReportsCount: 0,
     };
   });
 

@@ -7,11 +7,12 @@ import { LocationTypeEnum } from '../../../../core/enums/location-type.enum';
 import { locationStatusLabel, locationStatusTone } from '../../../../core/utils/location-util';
 import { IsVisibleDirective } from '../../../../shared/directives/is-visible.directive';
 import { reportCategoryLabel } from '../../../../core/utils/report-category-utils';
+import { RouterLink } from '@angular/router';
 
 /** The side panel with the details of the selected location and the report actions. */
 @Component({
   selector: 'app-location-inspector',
-  imports: [DatePipe, IsVisibleDirective],
+  imports: [DatePipe, IsVisibleDirective, RouterLink],
   templateUrl: './location-inspector.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex' },

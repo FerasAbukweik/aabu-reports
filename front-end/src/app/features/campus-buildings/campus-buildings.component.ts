@@ -230,9 +230,4 @@ export class CampusBuildingsComponent {
         error: () => this.isDeleting.set(false),
       });
   }
-
-  // ---------- navigation ----------
-  protected openTickets(): void {
-    void this.router.navigate(['/admin/history']);
-  }
 }

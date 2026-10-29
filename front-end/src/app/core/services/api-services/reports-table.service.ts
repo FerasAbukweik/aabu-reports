@@ -8,7 +8,6 @@ import { ReportState } from '../../enums/report-state.enum';
 import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { ReportApiService } from '../api/report-api.service';
 import { ToastService } from '../local/toast.service';
-import { MaintenanceStatsService } from './maintenance-stats.service';
 
 /** how many reports one page of the reports table holds */
 const REPORTS_TABLE_PAGE_SIZE = 10;
@@ -22,7 +21,6 @@ const REPORTS_TABLE_PAGE_SIZE = 10;
 export class ReportsTableService {
   // DI
   private reportApi = inject(ReportApiService);
-  private maintenanceStats = inject(MaintenanceStatsService);
   private toast = inject(ToastService);
 
   readonly pageSize = REPORTS_TABLE_PAGE_SIZE;
@@ -78,15 +76,21 @@ export class ReportsTableService {
       this._hasLoadFailed.set(false);
       this._isLoading.set(true);
 
-      return this.reportApi.getTable({ taken: (page - 1) * this.pageSize, sectionSize: this.pageSize }, this.filter, this.allReports).pipe(
-        tap((reports) => {
-          this.pages.set(page, reports);
-          this._reports.set(reports);
-        }),
-        finalize(() => this._isLoading.set(false)),
-        tap({ error: () => this._hasLoadFailed.set(true) }),
-        toastError(this.toast, 'تعذر تحميل البلاغات', (e) => this.errorMessage(e, 'load')),
-      );
+      return this.reportApi
+        .getTable(
+          { taken: (page - 1) * this.pageSize, sectionSize: this.pageSize },
+          this.filter,
+          this.allReports,
+        )
+        .pipe(
+          tap((reports) => {
+            this.pages.set(page, reports);
+            this._reports.set(reports);
+          }),
+          finalize(() => this._isLoading.set(false)),
+          tap({ error: () => this._hasLoadFailed.set(true) }),
+          toastError(this.toast, 'تعذر تحميل البلاغات', (e) => this.errorMessage(e, 'load')),
+        );
     });
   }
 
@@ -166,7 +170,6 @@ export class ReportsTableService {
     return this.reportApi.updateState({ id, state }).pipe(
       tap((updated) => {
         this.replace(updated);
-        this.maintenanceStats.refresh();
       }),
       toastError(this.toast, 'تعذر تحديث حالة البلاغ', (e) => this.errorMessage(e, 'update')),
     );
@@ -177,7 +180,6 @@ export class ReportsTableService {
     return this.reportApi.delete(id).pipe(
       tap(() => {
         this.remove(id);
-        this.maintenanceStats.refresh();
       }),
       toastError(this.toast, 'تعذر حذف البلاغ', (e) => this.errorMessage(e, 'delete')),
       map(() => undefined),

@@ -37,17 +37,6 @@ export class MaintenanceStatsService {
     );
   }
 
-  /**
-   * Reloads the stats in the background after a report was created, its state changed or it was deleted.
-   * No toast on failure, the old numbers stay on the screen.
-   */
-  public refresh(): void {
-    this.reportApi.getStats().subscribe({
-      next: (stats) => this._stats.set(stats),
-      error: () => {},
-    });
-  }
-
   // private
   private errorMessage(error: HttpErrorResponse): string {
     switch (error.status) {

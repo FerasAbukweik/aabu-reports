@@ -46,8 +46,10 @@
 
   <!-- Search + filters -->
   <app-search-filter-bar
-    [(query)]="query"
-    [(values)]="filterValues"
+    [query]="query()"
+    (queryChange)="onQueryChange($event)"
+    [values]="filterValues()"
+    (valuesChange)="onValuesChange($event)"
     [filters]="filters"
     [resultsLabel]="resultsLabel()"
     [showApply]="true"
@@ -80,5 +82,9 @@
 
 @if (isAdmin) {
   <app-report-state-modal [row]="liveStateRow()" (closed)="stateRow.set(null)" />
-  <app-report-delete-modal [row]="deleteRow()" (closed)="deleteRow.set(null)" (deleted)="onReportDeleted()" />
+  <app-report-delete-modal
+    [row]="deleteRow()"
+    (closed)="deleteRow.set(null)"
+    (deleted)="onReportDeleted()"
+  />
 }

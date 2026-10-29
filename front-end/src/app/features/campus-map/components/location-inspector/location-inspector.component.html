@@ -103,11 +103,18 @@
 
             @if (reports().length === 0) {
               @if (isLoading() || (isMoreAvailable() && !hasFailed())) {
-                <p class="text-[11px] font-semibold text-text-secondary" role="status">جارٍ تحميل البلاغات...</p>
+                <p class="text-[11px] font-semibold text-text-secondary" role="status">
+                  جارٍ تحميل البلاغات...
+                </p>
 
                 <!-- the first page: the list is empty, so the sentinel is on the screen at once and asks for it -->
                 @if (!isLoading()) {
-                  <div class="h-px" aria-hidden="true" appIsVisible (visible)="loadMoreReportsRequested.emit()"></div>
+                  <div
+                    class="h-px"
+                    aria-hidden="true"
+                    appIsVisible
+                    (visible)="loadMoreReportsRequested.emit()"
+                  ></div>
                 }
               } @else if (hasFailed()) {
                 <button
@@ -118,7 +125,9 @@
                   تعذر تحميل البلاغات، اضغط لإعادة المحاولة
                 </button>
               } @else {
-                <p class="rounded-xl border border-border-subtle bg-surface-bg p-3 text-center text-[11px] font-semibold text-text-secondary">
+                <p
+                  class="rounded-xl border border-border-subtle bg-surface-bg p-3 text-center text-[11px] font-semibold text-text-secondary"
+                >
                   لا توجد بلاغات على هذا الموقع
                 </p>
               }
@@ -126,15 +135,42 @@
               <div class="max-h-56 overflow-y-auto pe-1">
                 <ul class="space-y-2">
                   @for (report of reports(); track report.id) {
-                    <li class="tone-chip rounded-xl border p-3 text-xs" [class]="stateTone[report.state]">
+                    <li
+                      class="tone-chip rounded-xl border p-3 text-xs"
+                      [class]="stateTone[report.state]"
+                    >
+                      <!-- title row: what it is + when -->
                       <div class="flex items-center justify-between gap-2">
                         <span class="font-black">{{ reportCategoryLabel[report.category] }}</span>
-                        <span class="tone-dot h-2 w-2 shrink-0 rounded-full" aria-hidden="true"></span>
+                        <span class="font-mono text-[11px] font-bold opacity-80" dir="ltr">{{
+                          report.reportDate | date: 'yyyy/MM/dd'
+                        }}</span>
                       </div>
+
                       <p class="mt-1 line-clamp-2 font-medium">{{ report.description }}</p>
-                      <div class="mt-2 flex items-center justify-between gap-2 text-[11px] font-bold">
-                        <span>{{ stateLabel[report.state] }}</span>
-                        <span class="font-mono opacity-80" dir="ltr">{{ report.reportDate | date: 'yyyy/MM/dd' }}</span>
+
+                      <!-- footer: state on one side, the action on the other -->
+                      <div
+                        class="mt-2.5 flex items-center justify-between gap-2 border-t border-current/15 pt-2.5"
+                      >
+                        <span class="flex items-center gap-1.5 text-[11px] font-bold">
+                          <span
+                            class="tone-dot h-2 w-2 shrink-0 rounded-full"
+                            aria-hidden="true"
+                          ></span>
+                          {{ stateLabel[report.state] }}
+                        </span>
+
+                        <a
+                          [routerLink]="[report.id]"
+                          class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-current/25 bg-surface-card/70 px-2.5 py-1 text-[11px] font-extrabold transition hover:bg-surface-card active:scale-95"
+                          title="عرض تفاصيل البلاغ"
+                        >
+                          <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
+                            >visibility</span
+                          >
+                          <span>التفاصيل</span>
+                        </a>
                       </div>
                     </li>
                   }
@@ -143,7 +179,12 @@
                 <!-- one sentinel after the list: it is gone while a page loads and once there is no more,
                      and it comes back after each page, so a short list keeps loading until it fills the box -->
                 @if (isMoreAvailable() && !isLoading() && !hasFailed()) {
-                  <div class="h-px" aria-hidden="true" appIsVisible (visible)="loadMoreReportsRequested.emit()"></div>
+                  <div
+                    class="h-px"
+                    aria-hidden="true"
+                    appIsVisible
+                    (visible)="loadMoreReportsRequested.emit()"
+                  ></div>
                 }
 
                 @if (hasFailed()) {
@@ -157,7 +198,10 @@
                 }
 
                 @if (isLoading()) {
-                  <p class="py-2 text-center text-[11px] font-semibold text-text-secondary" role="status">
+                  <p
+                    class="py-2 text-center text-[11px] font-semibold text-text-secondary"
+                    role="status"
+                  >
                     جارٍ تحميل المزيد...
                   </p>
                 }

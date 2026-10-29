@@ -2,49 +2,53 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  ElementRef,
-  afterNextRender,
   computed,
   inject,
+  input,
+  output,
   signal,
-  viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { ReportAttachment } from './report-modal.model';
-import { ReportModalService } from './report-modal.service';
 import { CUSTOM_PIN_ID } from '../../../../core/constants/location';
 import { ReportSeverity } from '../../../../core/enums/report-severity.enum';
 import { LocationService } from '../../../../core/services/api-services/location.service';
 import { MapReportsService } from '../../../../core/services/api-services/map-reports.service';
 import { ToastService } from '../../../../core/services/local/toast.service';
-import { REPORT_CATEGORIES, reportCategoryLabel } from '../../../../core/utils/report-category-utils';
+import {
+  REPORT_CATEGORIES,
+  reportCategoryLabel,
+} from '../../../../core/utils/report-category-utils';
+import { DialogComponent } from '../../../../shared/components/dialog/dialog.component';
 import { MapViewService } from '../../../../shared/components/map-view/map-view.service';
 
 /** per image. 5 images of this size stay under the backend request size limit (30 MB) */
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
 
+/** Sends a report for a location of the map (or for the pin the user dropped). The page owns the state: `locationId` opens it, `closed` closes it. */
 @Component({
   selector: 'app-report-modal',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DialogComponent],
   templateUrl: './report-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportModalComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   private readonly toast = inject(ToastService);
   private readonly mapReportsService = inject(MapReportsService);
   private readonly mapSelection = inject(MapViewService);
   private readonly locationService = inject(LocationService);
 
-  // protected
-  protected readonly modal = inject(ReportModalService);
+  /** the location to report on, null keeps the dialog closed (only the id: the dialog looks the location up, so it is never old) */
+  readonly locationId = input<string | null>(null);
+
+  readonly closed = output<void>();
 
   /** the location of the report: from the list, or the pin the user dropped (it is not in the list) */
   protected readonly location = computed(() => {
-    const id = this.modal.locationId();
+    const id = this.locationId();
     if (!id) return null;
 
     if (id === CUSTOM_PIN_ID) return this.mapSelection.selected();
@@ -69,14 +73,9 @@ export class ReportModalComponent {
   protected readonly submitting = signal(false);
 
   constructor() {
-    // the service opens and closes the dialog, so it gets it as soon as it exists
-    afterNextRender(() => this.modal.init(this.dialog().nativeElement));
-
-    inject(DestroyRef).onDestroy(() => this.attachments().forEach((a) => URL.revokeObjectURL(a.previewUrl)));
-  }
-
-  protected onBackdropClick(event: MouseEvent): void {
-    if (event.target === this.dialog().nativeElement) this.modal.close();
+    inject(DestroyRef).onDestroy(() =>
+      this.attachments().forEach((a) => URL.revokeObjectURL(a.previewUrl)),
+    );
   }
 
   protected onFilesSelected(event: Event): void {
@@ -144,18 +143,19 @@ export class ReportModalComponent {
     // MapReportsService shows the error toast; the form stays filled so the user can try again
     this.mapReportsService
       .create(location, { ...this.form.getRawValue(), images })
-      .pipe(finalize(() => this.submitting.set(false)))
+      .pipe(
+        finalize(() => {
+          this.submitting.set(false);
+          this.closed.emit();
+        }),
+      )
       .subscribe({
         next: ({ location: saved }) => {
           // a dropped pin became a real location: select that one, so the inspector shows it
-          this.mapSelection.selectLocation(saved.id);
+          this.mapSelection.selectAndFocusLocation(saved.id);
 
           this.reset();
-          this.modal.close();
-          this.toast.success(
-            'تم إرسال البلاغ',
-            `تم تسجيل بلاغك عن: ${location.title}`,
-          );
+          this.toast.success('تم إرسال البلاغ', `تم تسجيل بلاغك عن: ${location.title}`);
         },
         error: () => {},
       });

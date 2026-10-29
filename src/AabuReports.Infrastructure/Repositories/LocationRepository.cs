@@ -42,7 +42,7 @@ public class LocationRepository(
         if (row == null) return null;
 
         row.Location.State = (ReportStateEnum)row.Highest;
-        row.Location.ReportsCount = row.ReportsCount;
+        row.Location.ActiveReportsCount = row.ReportsCount;
 
         return row.Location;
     }
@@ -62,14 +62,14 @@ public class LocationRepository(
             {
                 Location = l,
                 Highest = l.Reports.Max(r => (int?)r.State) ?? 0,
-                ReportsCount = l.Reports.Count()
+                ActiveReportsCount = l.Reports.Count(r => (int)r.State > (int)ReportStateEnum.Fixed)
             })
             .ToListAsync(cancellationToken);
 
         foreach (var row in rows)
         {
             row.Location.State = (ReportStateEnum)row.Highest;
-            row.Location.ReportsCount = row.ReportsCount;
+            row.Location.ActiveReportsCount = row.ActiveReportsCount;
         }
         
         return rows.Select(r => r.Location).ToList();

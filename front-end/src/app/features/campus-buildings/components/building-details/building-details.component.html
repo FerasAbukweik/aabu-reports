@@ -31,8 +31,8 @@
         <span class="mt-0.5 text-xs font-bold text-text-primary">{{ stateLabel[loc.status] }}</span>
       </div>
       <div class="flex flex-col rounded-xl bg-surface-card-subtle p-2.5">
-        <span class="font-medium text-text-muted">عدد البلاغات</span>
-        <span class="mt-0.5 text-xs font-bold text-text-primary">{{ loc.reportsCount }}</span>
+        <span class="font-medium text-text-muted">عدد البلاغات النشطة</span>
+        <span class="mt-0.5 text-xs font-bold text-text-primary">{{ loc.activeReportsCount }}</span>
       </div>
     </div>
 
@@ -47,12 +47,17 @@
         >
         التركيز على الخريطة
       </button>
-      <button type="button" class="btn btn-subtle !py-2.5 text-xs" (click)="ticketsRequested.emit()">
+      <a
+        [routerLink]="['/admin', 'history']"
+        [queryParams]="{ l_id: building().id }"
+        type="button"
+        class="btn btn-subtle !py-2.5 text-xs"
+      >
         <span class="material-symbols-outlined text-[17px] text-accent" aria-hidden="true"
           >receipt_long</span
         >
-        عرض سجل البلاغات والتذاكر ({{ loc.reportsCount }})
-      </button>
+        عرض سجل البلاغات والتذاكر ({{ loc.activeReportsCount }})
+      </a>
       @if (mapsUrl(); as url) {
         <a
           class="btn btn-subtle !py-2.5 text-xs"

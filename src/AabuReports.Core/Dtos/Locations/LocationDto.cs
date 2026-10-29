@@ -12,5 +12,5 @@ public class LocationDto
     public required string Title { get; set; }
     public required MapCoordinates Coordinates { get; set; }
     public required LocationType Type { get; set; }
-    public required int ReportsCount { get; set; }
+    public required int ActiveReportsCount { get; set; }
 }

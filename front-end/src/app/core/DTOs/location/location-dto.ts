@@ -15,5 +15,5 @@ export interface LocationDTO {
   type: LocationTypeEnum;
 
   /** how many reports the location has in total (the lazy loaded list does not know it) */
-  reportsCount: number;
+  activeReportsCount: number;
 }

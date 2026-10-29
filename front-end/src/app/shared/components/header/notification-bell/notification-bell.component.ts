@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../../core/services/api-services/notification.service';
 import { formatFullDate, formatRelativeDate } from '../../../../core/utils/date-format';
@@ -33,7 +42,9 @@ export class NotificationBellComponent {
   protected readonly isMarkingAsRead = signal(false);
 
   /** "9+" on the badge when there are more than nine */
-  protected readonly badgeText = computed(() => (this.unreadCount() > 9 ? '9+' : String(this.unreadCount())));
+  protected readonly badgeText = computed(() =>
+    this.unreadCount() > 9 ? '9+' : String(this.unreadCount()),
+  );
 
   // template helpers
   protected readonly getMeta = getNotificationMeta;
@@ -79,6 +90,8 @@ export class NotificationBellComponent {
 
   /** the next page (the first one too): asked by the sentinel at the end of the list, and by the retry button */
   protected loadMore(): void {
+    if (!this.isOpen()) return;
+
     this.notificationService.loadMore().subscribe({ error: () => {} });
   }
 

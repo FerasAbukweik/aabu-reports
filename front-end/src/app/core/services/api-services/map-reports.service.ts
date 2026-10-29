@@ -10,7 +10,6 @@ import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { ReportApiService } from '../api/report-api.service';
 import { ToastService } from '../local/toast.service';
 import { LocationService } from './location.service';
-import { MaintenanceStatsService } from './maintenance-stats.service';
 
 /** how many reports of a location are loaded each time */
 const LOCATION_REPORTS_PAGE_SIZE = 10;
@@ -21,7 +20,6 @@ export class MapReportsService {
   // DI
   private reportApi = inject(ReportApiService);
   private locationService = inject(LocationService);
-  private maintenanceStats = inject(MaintenanceStatsService);
   private toast = inject(ToastService);
 
   // state
@@ -48,7 +46,6 @@ export class MapReportsService {
    */
   private readonly _locationReportsExhausted = signal<Record<string, boolean>>({});
 
-
   // methods
 
   /**
@@ -59,7 +56,8 @@ export class MapReportsService {
   public isMoreLocationReportsAvailable(locationId: string): boolean {
     if (this._locationReportsExhausted()[locationId]) return false;
 
-    const total = this.locationService.locations().find((l) => l.id === locationId)?.reportsCount ?? 0;
+    const total =
+      this.locationService.locations().find((l) => l.id === locationId)?.activeReportsCount ?? 0;
     const loaded = this._locationReports()[locationId]?.length ?? 0;
 
     return loaded < total;
@@ -74,20 +72,28 @@ export class MapReportsService {
    * dropped pin) replaces the one in the locations list, no extra request.
    * On failure it shows an error toast and rethrows.
    */
-  public create(location: LocationDTO, reportCreateDto: ReportCreateDTO): Observable<ReportCreateResponseDTO> {
+  public create(
+    location: LocationDTO,
+    reportCreateDto: ReportCreateDTO,
+  ): Observable<ReportCreateResponseDTO> {
     const request$ =
       location.id === CUSTOM_PIN_ID
-        ? this.reportApi.createForCoordinates({ coordinates: location.coordinates, ...reportCreateDto })
+        ? this.reportApi.createForCoordinates({
+            coordinates: location.coordinates,
+            ...reportCreateDto,
+          })
         : this.reportApi.createForLocation({ locationId: location.id, ...reportCreateDto });
 
     return request$.pipe(
       toastError(this.toast, 'تعذر إرسال البلاغ', (e) => this.errorMessage(e)),
-      tap(({ report, location: saved }) => {
-        this.locationService.upsert(saved);
+      tap(({ report, location }) => {
+        this.locationService.upsert(location);
         // the new report goes on top of the list of its location. A location that was never loaded
         // starts its list with it (`?? []`). `taken` is the length of the list, so the next page moves with it
-        this._locationReports.update((all) => ({ ...all, [saved.id]: [report, ...(all[saved.id] ?? [])] }));
-        this.maintenanceStats.refresh();
+        this._locationReports.update((all) => ({
+          ...all,
+          [location.id]: [report, ...(all[location.id] ?? [])],
+        }));
       }),
     );
   }
@@ -105,7 +111,10 @@ export class MapReportsService {
   public loadMoreLocationReports(locationId: string): Observable<readonly ReportMapDTO[]> {
     // defer: the state is read when the request is subscribed, not when this method is called
     return defer(() => {
-      if (!this.isMoreLocationReportsAvailable(locationId) || this._isLocationReportsLoading()[locationId]) {
+      if (
+        !this.isMoreLocationReportsAvailable(locationId) ||
+        this._isLocationReportsLoading()[locationId]
+      ) {
         return EMPTY;
       }
 
@@ -115,19 +124,22 @@ export class MapReportsService {
       // the reports already loaded of this location are the ones taken
       const taken = this._locationReports()[locationId]?.length ?? 0;
 
-      return this.reportApi.getByLocation(locationId, { taken, sectionSize: LOCATION_REPORTS_PAGE_SIZE }).pipe(
-        tap((reports) => {
-          this._locationReports.update((all) => ({
-            ...all,
-            [locationId]: [...(all[locationId] ?? []), ...reports],
-          }));
+      return this.reportApi
+        .getByLocation(locationId, { taken, sectionSize: LOCATION_REPORTS_PAGE_SIZE })
+        .pipe(
+          tap((reports) => {
+            this._locationReports.update((all) => ({
+              ...all,
+              [locationId]: [...(all[locationId] ?? []), ...reports],
+            }));
 
-          if (reports.length === 0) this._locationReportsExhausted.update((all) => ({ ...all, [locationId]: true }));
-        }),
-        finalize(() => this.setLocationReportsLoading(locationId, false)),
-        tap({ error: () => this.setLocationReportsFailed(locationId, true) }),
-        toastError(this.toast, 'تعذر تحميل بلاغات الموقع', (e) => this.errorMessage(e)),
-      );
+            if (reports.length === 0)
+              this._locationReportsExhausted.update((all) => ({ ...all, [locationId]: true }));
+          }),
+          finalize(() => this.setLocationReportsLoading(locationId, false)),
+          tap({ error: () => this.setLocationReportsFailed(locationId, true) }),
+          toastError(this.toast, 'تعذر تحميل بلاغات الموقع', (e) => this.errorMessage(e)),
+        );
     });
   }
 

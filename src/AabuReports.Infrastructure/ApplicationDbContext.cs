@@ -45,7 +45,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             });
             
             location.Ignore(l => l.State);
-            location.Ignore(l => l.ReportsCount);
+            location.Ignore(l => l.ActiveReportsCount);
         });
 
         // report
@@ -68,7 +68,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         // deleting a report sets ReportId to null (the images are removed later by RemoveOrphanedImages)
         builder.Entity<Image>(image =>
         {
-            image.HasOne(i => i.Report)
+            image
+                .HasOne(i => i.Report)
                 .WithMany(r => r.Images)
                 .HasForeignKey(i => i.ReportId)
                 .IsRequired(false)

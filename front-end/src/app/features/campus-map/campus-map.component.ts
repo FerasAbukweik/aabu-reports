@@ -5,12 +5,12 @@ import {
   DestroyRef,
   ElementRef,
   inject,
+  signal,
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReportMapDTO } from '../../core/DTOs/report/report-map-dto';
 import { Status } from '../../core/enums/status.enum';
-import { ReportModalService } from './components/report-modal/report-modal.service';
 import { ToastService } from '../../core/services/local/toast.service';
 import { LocationService } from '../../core/services/api-services/location.service';
 import { MapReportsService } from '../../core/services/api-services/map-reports.service';
@@ -41,7 +41,6 @@ const NO_REPORTS: readonly ReportMapDTO[] = [];
 })
 export class CampusMapComponent {
   private readonly toast = inject(ToastService);
-  private readonly reportModal = inject(ReportModalService);
   private readonly mapSelection = inject(MapViewService);
   private readonly locationService = inject(LocationService);
   private readonly mapReportsService = inject(MapReportsService);
@@ -187,11 +186,14 @@ export class CampusMapComponent {
       .subscribe({ error: () => {} });
   }
 
+  /** the location the report dialog is open for, null keeps it closed */
+  protected readonly reportLocationId = signal<string | null>(null);
+
   /** opens the dialog with the current selection */
   protected openReport(): void {
     const location = this.selected();
     if (!location) return;
 
-    this.reportModal.open(location.id);
+    this.reportLocationId.set(location.id);
   }
 }
