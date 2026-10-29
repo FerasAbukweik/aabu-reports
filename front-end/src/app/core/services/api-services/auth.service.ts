@@ -1,13 +1,14 @@
-// auth.service.ts
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { firstValueFrom, Observable, switchMap, tap } from 'rxjs';
+import { Observable, switchMap, tap } from 'rxjs';
 import { LoginDTO } from '../../DTOs/auth/login-dto';
 import { MeDTO } from '../../DTOs/account/me-dto';
 import { AccountApiService } from '../api/account-api.service';
-import { toastError } from '../../utils/error-toast';
+import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { AuthApiService } from '../api/auth-api.service';
 import { ToastService } from '../local/toast.service';
+
+const USER_KEY = 'user';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -19,6 +20,12 @@ export class AuthService {
   // state
   private readonly _currentUser = signal<MeDTO | null>(null);
   public readonly currentUser = this._currentUser.asReadonly();
+
+  public readonly isLoggedIn = computed(() => this._currentUser() !== null);
+
+  constructor() {
+    this._currentUser.set(this.readStoredUser());
+  }
 
   // methods
 
@@ -41,28 +48,20 @@ export class AuthService {
    */
   public loadCurrentUser(): Observable<MeDTO> {
     return this.accountApi.me().pipe(
-      tap((user) => this._currentUser.set(user)),
+      tap((user) => this.setUser(user)),
       toastError(this.toast, 'تعذر تحميل بيانات الحساب'),
     );
-  }
-
-  public async isLoggedIn() {
-    if (this._currentUser() !== null) return true;
-
-    try {
-      // no toast here: the auth guard calls this and a 401 is expected for a guest
-      await firstValueFrom(this.accountApi.me().pipe(tap((user) => this._currentUser.set(user))));
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   /** Revokes the refresh token and clears the cookies. Shows an error toast and rethrows if it fails. */
   public logout(): Observable<unknown> {
     return this.authApi.logout().pipe(
       toastError(this.toast, 'تعذر تسجيل الخروج'),
-      tap({ next: () => window.location.reload() }),
+      // the page reloads so every service starts from a clean state
+      tap(() => {
+        this.clearUser();
+        window.location.reload();
+      }),
     );
   }
 
@@ -70,10 +69,29 @@ export class AuthService {
     return this.authApi.refresh();
   }
 
+  /** Forgets the user (signal and local storage), so the guards send them to the login page. */
+  public clearUser(): void {
+    this._currentUser.set(null);
+    localStorage.removeItem(USER_KEY);
+  }
+
+  private setUser(user: MeDTO): void {
+    this._currentUser.set(user);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+
+  private readStoredUser(): MeDTO | null {
+    try {
+      const stored = localStorage.getItem(USER_KEY);
+      return stored ? (JSON.parse(stored) as MeDTO) : null;
+    } catch {
+      // storage unavailable or the value is broken: start logged out
+      return null;
+    }
+  }
+
   private loginErrorMessage(error: HttpErrorResponse): string {
     switch (error.status) {
-      case 0:
-        return 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت وحاول مرة أخرى';
       case 400:
         return 'تحقق من الرقم الجامعي (10 أرقام) وكلمة المرور ثم حاول مرة أخرى';
       case 401:
@@ -81,7 +99,7 @@ export class AuthService {
       case 429:
         return 'تم قفل الحساب مؤقتًا بسبب محاولات متكررة، حاول مرة أخرى لاحقًا';
       default:
-        return 'حدث خطأ غير متوقع، حاول مرة أخرى لاحقًا';
+        return defaultErrorReason(error);
     }
   }
 }

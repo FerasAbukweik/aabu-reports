@@ -18,6 +18,9 @@
       - SeedAdmin__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - SeedAdmin__Email=${ADMIN_EMAIL}
       - SeedAdmin__FullName=${ADMIN_FULL_NAME}
+      - CloudinarySettings__CloudName=${CloudName}
+      - CloudinarySettings__ApiKey=${ApiKey}
+      - CloudinarySettings__ApiSecret=${ApiSecret}
     depends_on:
       mssql-service:
         condition: service_healthy

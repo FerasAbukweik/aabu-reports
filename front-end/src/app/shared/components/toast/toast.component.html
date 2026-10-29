@@ -6,7 +6,7 @@
   (focusout)="toastService.resume()"
 >
   @if (toastService.extraCount() > 0) {
-    <span class="tone-normal absolute -top-3 right-2 z-10" aria-live="polite">
+    <span class="tone-normal absolute -top-3 end-2 z-10" aria-live="polite">
       <span
         class="tone-dot flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-[11px] font-black text-text-inverse shadow-lg"
         [attr.aria-label]="toastService.extraCount() + ' إشعارات إضافية'"

@@ -54,14 +54,9 @@ public interface IReportRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// loads all reports, newest first (entities are not tracked)
+    /// loads all reports that match the filter, newest first (entities are not tracked)
     /// </summary>
-    Task<IReadOnlyList<Report>> LazyGetAllAsync(LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// loads the reports of one user, newest first (entities are not tracked)
-    /// </summary>
-    Task<IReadOnlyList<Report>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Report>> LazyGetAllAsync(ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// changes the state of a report in the memory (doesnt save it to DB), the rate is cleared if it is no longer fixed
@@ -70,6 +65,16 @@ public interface IReportRepository
     /// <param name="cancellationToken"></param>
     /// <returns>returns the updated report -- returns null if no report was found</returns>
     Task<Report?> UpdateState(ReportUpdateStateDto reportUpdateStateDto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// calculates the maintenance stats from the reports in the DB (read only)
+    /// </summary>
+    Task<MaintenanceStatsDto> GetMaintenanceStatsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// calculates the history stats of one user (or of everyone if userId is null) from the reports in the DB (read only)
+    /// </summary>
+    Task<ReportHistoryStatsDto> GetHistoryStatsAsync(Guid? userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// save all changes in memory to DB

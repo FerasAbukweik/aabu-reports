@@ -7,30 +7,28 @@ import {
   inject,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { catchError, EMPTY, switchMap } from 'rxjs';
-import { ReportDTO } from '../../core/DTOs/report/report-dto';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ReportMapDTO } from '../../core/DTOs/report/report-map-dto';
 import { Status } from '../../core/enums/status.enum';
-import { MaintenanceStatsService } from '../../core/services/local/maintenance-stats.service';
 import { ReportModalService } from './components/report-modal/report-modal.service';
 import { ToastService } from '../../core/services/local/toast.service';
 import { LocationService } from '../../core/services/api-services/location.service';
-import { ReportsService } from '../../core/services/api-services/reports.service';
+import { MapReportsService } from '../../core/services/api-services/map-reports.service';
+import { MaintenanceStatsService } from '../../core/services/api-services/maintenance-stats.service';
 import { LocationInspectorComponent } from './components/location-inspector/location-inspector.component';
 import { MapViewComponent } from '../../shared/components/map-view/map-view.component';
 import { MapViewService } from '../../shared/components/map-view/map-view.service';
 import { PlaceSearchComponent } from './components/place-search/place-search.component';
 import { ReportModalComponent } from './components/report-modal/report-modal.component';
-import { StatCardsComponent } from '../../shared/components/stat-card/stat-card.component';
+import { StatCardsComponent } from '../../shared/components/stat-card/stat-cards.component';
 import { StatCard } from '../../shared/components/stat-card/stat-card.model';
 import { LocateResult } from '../../shared/components/map-view/map-view.model';
 
 /** the reports of a location that has none loaded yet (one array, so the signal does not change) */
-const NO_REPORTS: readonly ReportDTO[] = [];
+const NO_REPORTS: readonly ReportMapDTO[] = [];
 
 @Component({
   selector: 'app-campus-map',
-  standalone: true,
   imports: [
     PlaceSearchComponent,
     MapViewComponent,
@@ -46,7 +44,8 @@ export class CampusMapComponent {
   private readonly reportModal = inject(ReportModalService);
   private readonly mapSelection = inject(MapViewService);
   private readonly locationService = inject(LocationService);
-  private readonly reportsService = inject(ReportsService);
+  private readonly mapReportsService = inject(MapReportsService);
+  private readonly maintenanceStats = inject(MaintenanceStatsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly inspector = viewChild('inspector', { read: ElementRef });
 
@@ -58,58 +57,60 @@ export class CampusMapComponent {
       // LocationService already shows the error toast, nothing else to do on failure
       .subscribe({ error: () => {} });
 
-    // the inspector shows the reports of the selected location: load its first page when the
-    // selection changes (switchMap cancels the request of the previous selection)
-    toObservable(this.mapSelection.selectedLocationId)
-      .pipe(
-        switchMap((locationId) => {
-          // nothing selected, or the dropped pin (it has no reports yet)
-          if (!locationId) return EMPTY;
-          // a location that already has reports keeps them, the inspector asks for the next page itself
-          if (this.reportsService.locationReports()[locationId]?.length) return EMPTY;
-          // ReportsService already shows the error toast
-          return this.reportsService.loadMoreLocationReports(locationId).pipe(catchError(() => EMPTY));
-        }),
-        takeUntilDestroyed(),
-      )
-      .subscribe();
+    // the stats cards (the numbers stay empty until the request is done)
+    this.maintenanceStats
+      .load()
+      .pipe(takeUntilDestroyed())
+      // MaintenanceStatsService already shows the error toast, nothing else to do on failure
+      .subscribe({ error: () => {} });
   }
 
-  // ---------- static data ----------
-  protected readonly stats = inject(MaintenanceStatsService).stats;
+  // ---------- stats ----------
+  private readonly stats = this.maintenanceStats.stats;
 
-  /** maintenance stats mapped to the generic stat cards */
+  /** the average response time for the inspector, rounded up ("less than N hours"), null while unknown */
+  protected readonly inspectorAvgResponseHours = computed(() => {
+    const hours = this.stats()?.averageResponseTimeHours;
+    return hours ? Math.ceil(hours) : null;
+  });
+
+  /** maintenance stats mapped to the generic stat cards (a dash while the numbers are not loaded) */
   protected readonly statCards = computed<StatCard[]>(() => {
     const s = this.stats();
+    const dash = '—';
 
     return [
       {
         label: 'إجمالي البلاغات المنجزة',
-        value: String(s.completed),
+        value: s ? String(s.completedReportsCount) : dash,
         unit: 'طلب صيانة مكتمل',
         icon: 'task_alt',
         status: Status.Success,
-        note: `نسبة إنجاز ${s.completionRate} خلال العام الحالي`,
+        note: s ? `نسبة إنجاز ${s.completionRatePercent}% خلال العام الحالي` : undefined,
         noteIcon: 'trending_up',
       },
       {
         label: 'بلاغات قيد التنفيذ والمتابعة',
-        value: String(s.inProgress),
+        value: s ? String(s.inProgressReportsCount) : dash,
         unit: 'حالات صيانة ميدانية',
         icon: 'engineering',
         status: Status.Warning,
-        badge: 'نشط الآن',
-        note: s.fieldCrewNote,
-        notePulse: true,
+        badge: s && s.inProgressReportsCount > 0 ? 'نشط الآن' : undefined,
+        note: !s
+          ? undefined
+          : s.activeCrewLocation
+            ? `كادر الصيانة متواجد في ${s.activeCrewLocation}`
+            : 'لا توجد أعمال صيانة جارية حاليًا',
+        notePulse: !!s?.activeCrewLocation,
         route: '/history',
       },
       {
         label: 'متوسط زمن الاستجابة للبلاغ',
-        value: String(s.avgResponseHours),
+        value: s && s.averageResponseTimeHours > 0 ? String(s.averageResponseTimeHours) : dash,
         unit: 'ساعة فقط',
         icon: 'speed',
         status: Status.Info,
-        note: 'إشعار الطالب فوري عبر البوابة والرسائل',
+        note: 'إشعار الطالب فوري عبر الاشعارات والرسائل',
         noteIcon: 'bolt',
       },
     ];
@@ -118,21 +119,25 @@ export class CampusMapComponent {
   // ---------- selection ----------
   /** the selection lives in MapViewService: the map, the search and the inspector all use it */
   protected readonly selected = this.mapSelection.selected;
-  protected readonly isCustomPin = this.mapSelection.isCustomPin;
 
   /** the reports, the loading flag and the "more" flag of the selected location */
   protected readonly locationReports = computed(() => {
     const id = this.mapSelection.selectedLocationId();
-    return (id && this.reportsService.locationReports()[id]) || NO_REPORTS;
+    return (id && this.mapReportsService.locationReports()[id]) || NO_REPORTS;
   });
   protected readonly isLocationReportsLoading = computed(() => {
     const id = this.mapSelection.selectedLocationId();
-    return !!id && !!this.reportsService.isLocationReportsLoading()[id];
+    return !!id && !!this.mapReportsService.isLocationReportsLoading()[id];
+  });
+
+  protected readonly hasLocationReportsFailed = computed(() => {
+    const id = this.mapSelection.selectedLocationId();
+    return !!id && !!this.mapReportsService.locationReportsFailed()[id];
   });
 
   protected readonly isMoreLocationReportsAvailable = computed(() => {
     const id = this.mapSelection.selectedLocationId();
-    return !!id && this.reportsService.isMoreLocationReportsAvailable(id);
+    return !!id && this.mapReportsService.isMoreLocationReportsAvailable(id);
   });
 
   protected resetSelection(): void {
@@ -170,15 +175,15 @@ export class CampusMapComponent {
   }
 
   // ---------- report ----------
-  /** the inspector asked for the next page of the reports of the selected location */
+  /** the inspector asked for the next page of the reports of the selected location (the first page too: its sentinel is on the screen) */
   protected loadMoreReports(): void {
     const locationId = this.mapSelection.selectedLocationId();
     if (!locationId) return;
 
-    this.reportsService
+    this.mapReportsService
       .loadMoreLocationReports(locationId)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      // ReportsService already shows the error toast
+      // MapReportsService already shows the error toast
       .subscribe({ error: () => {} });
   }
 
@@ -187,6 +192,6 @@ export class CampusMapComponent {
     const location = this.selected();
     if (!location) return;
 
-    this.reportModal.open(location);
+    this.reportModal.open(location.id);
   }
 }

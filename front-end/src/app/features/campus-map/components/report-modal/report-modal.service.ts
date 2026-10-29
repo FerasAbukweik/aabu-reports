@@ -1,43 +1,27 @@
-import { inject, Injectable, signal } from '@angular/core';
-import { LocationDTO } from '../../../../core/DTOs/location/location-dto';
-import { ToastService } from '../../../../core/services/local/toast.service';
+import { Injectable, signal } from '@angular/core';
 
+/**
+ * Opens and closes the report dialog, and remembers which location it is for (only the id:
+ * the component looks the location up, so it is never old).
+ */
 @Injectable({ providedIn: 'root' })
 export class ReportModalService {
-  // DI
-  private readonly _toast = inject(ToastService);
+  private readonly _locationId = signal<string | null>(null);
+  readonly locationId = this._locationId.asReadonly();
 
-  // signals
-  private readonly _isOpen = signal(false);
-  private readonly _location = signal<LocationDTO | null>(null);
+  private dialog: HTMLDialogElement | null = null;
 
-  readonly isOpen = this._isOpen.asReadonly();
-  readonly location = this._location.asReadonly();
-
-  // private
-  private dialogEl: HTMLDialogElement | null = null;
-
-  // methods
-  init(dialogEL: HTMLDialogElement) {
-    this.dialogEl = dialogEL;
+  /** the component gives its <dialog> to the service when it is created */
+  init(dialog: HTMLDialogElement): void {
+    this.dialog = dialog;
   }
 
-  open(location: LocationDTO) {
-    if (!this.dialogEl) {
-      this._toast.error('something went wrong viewing dialog');
-      return;
-    }
-    this._location.set(location);
-    this.dialogEl.showModal();
-    this._isOpen.set(true);
+  open(locationId: string): void {
+    this._locationId.set(locationId);
+    this.dialog?.showModal();
   }
 
   close(): void {
-    if (!this.dialogEl) {
-      this._toast.error('something went wrong closing dialog');
-      return;
-    }
-    this._isOpen.set(false);
-    this.dialogEl.close();
+    this.dialog?.close();
   }
 }

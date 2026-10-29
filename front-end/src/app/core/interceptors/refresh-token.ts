@@ -32,6 +32,7 @@ export const refreshTokenInterceptor: HttpInterceptorFn = (req, next) => {
           // During a navigation the guard decides where to go.
           // Only redirect for requests made while the user is already on a page.
           if (!router.currentNavigation() && !router.url.includes('login-signup')) {
+            authService.clearUser();
             router.navigateByUrl('/login-signup');
           }
           return throwError(() => refreshErr);

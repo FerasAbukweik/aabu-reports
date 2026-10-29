@@ -1,12 +1,12 @@
-import { ReportState } from '../../enums/buildings-status';
-import { LocationTypeEnum } from '../../enums/location-type';
-import { MapCoordinates } from '../../interfaces/map-Coordinates';
+import { ReportState } from '../../enums/report-state.enum';
+import { LocationTypeEnum } from '../../enums/location-type.enum';
+import { MapCoordinates } from '../../interfaces/map-coordinates';
 
 export interface LocationDTO {
   id: string;
 
   status: ReportState;
-  /** buildings have a name; pins don't need one */
+  /** the name of the building, or a generic name for a pin */
   title: string;
 
   /** where it is on Google Maps, and nothing else */

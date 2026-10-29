@@ -41,7 +41,7 @@ public class LocationRepository(
             .FirstOrDefaultAsync(cancellationToken);
         if (row == null) return null;
 
-        row.Location.State = (ReportState)row.Highest;
+        row.Location.State = (ReportStateEnum)row.Highest;
         row.Location.ReportsCount = row.ReportsCount;
 
         return row.Location;
@@ -49,8 +49,14 @@ public class LocationRepository(
 
     public async Task<IReadOnlyList<Location>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        var lastWeekDate = DateTime.UtcNow.AddDays(-7);
+        
         var rows = await dbContext.Locations
             .AsNoTracking()
+            .Where(l => (
+                l.Reports.Any(r => (int)r.State > (int)ReportStateEnum.Fixed) ||
+                l.Reports.Any(r => r.FixDate >= lastWeekDate)
+                ))
             .OrderBy(l => l.Title)
             .Select(l => new
             {
@@ -62,7 +68,7 @@ public class LocationRepository(
 
         foreach (var row in rows)
         {
-            row.Location.State = (ReportState)row.Highest;
+            row.Location.State = (ReportStateEnum)row.Highest;
             row.Location.ReportsCount = row.ReportsCount;
         }
         

@@ -4,6 +4,7 @@ namespace AabuReports.Core.Dtos.Reports;
 
 public class ReportCreateResponseDto
 {
-    public required ReportDto Report { get; set; }
+    /// <summary> the new report, in the shape of the map's location reports list </summary>
+    public required ReportMapDto Report { get; set; }
     public required LocationDto Location { get; set; }
 }

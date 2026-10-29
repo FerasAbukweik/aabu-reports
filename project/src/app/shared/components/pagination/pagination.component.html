@@ -1,0 +1,64 @@
+@if (totalPages() > 1) {
+  <!-- the app is RTL: the first page is on the right, so "first / previous" use the right arrows -->
+  <nav aria-label="ترقيم الصفحات" class="flex items-center gap-1">
+    <button
+      type="button"
+      class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-card enabled:hover:text-primary disabled:opacity-40"
+      aria-label="الصفحة الأولى"
+      [disabled]="disabled() || page() === 1"
+      (click)="go(1)"
+    >
+      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">keyboard_double_arrow_right</span>
+    </button>
+    <button
+      type="button"
+      class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-card enabled:hover:text-primary disabled:opacity-40"
+      aria-label="الصفحة السابقة"
+      [disabled]="disabled() || page() === 1"
+      (click)="go(page() - 1)"
+    >
+      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_right</span>
+    </button>
+
+    @for (item of items(); track $index) {
+      @if (item === null) {
+        <span class="w-8 text-center text-text-muted" aria-hidden="true">…</span>
+      } @else {
+        <button
+          type="button"
+          class="h-8 w-8 rounded-lg font-mono text-xs font-bold transition-colors disabled:cursor-not-allowed"
+          [class]="
+            item === page()
+              ? 'bg-primary text-on-primary shadow-sm'
+              : 'text-text-primary hover:bg-surface-card disabled:opacity-60'
+          "
+          [attr.aria-current]="item === page() ? 'page' : null"
+          [attr.aria-label]="'الصفحة ' + item"
+          [disabled]="disabled()"
+          (click)="go(item)"
+        >
+          {{ item }}
+        </button>
+      }
+    }
+
+    <button
+      type="button"
+      class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-card enabled:hover:text-primary disabled:opacity-40"
+      aria-label="الصفحة التالية"
+      [disabled]="disabled() || page() === totalPages()"
+      (click)="go(page() + 1)"
+    >
+      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_left</span>
+    </button>
+    <button
+      type="button"
+      class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-card enabled:hover:text-primary disabled:opacity-40"
+      aria-label="الصفحة الأخيرة"
+      [disabled]="disabled() || page() === totalPages()"
+      (click)="go(totalPages())"
+    >
+      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">keyboard_double_arrow_left</span>
+    </button>
+  </nav>
+}

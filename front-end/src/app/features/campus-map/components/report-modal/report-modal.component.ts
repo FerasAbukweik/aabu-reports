@@ -1,83 +1,126 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
-  OnInit,
+  afterNextRender,
+  computed,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { ReportAttachment } from './report-modal.model';
 import { ReportModalService } from './report-modal.service';
-import { getReportCategories, reportCategoryLabel } from './report-modal.data';
+import { CUSTOM_PIN_ID } from '../../../../core/constants/location';
 import { ReportSeverity } from '../../../../core/enums/report-severity.enum';
+import { LocationService } from '../../../../core/services/api-services/location.service';
+import { MapReportsService } from '../../../../core/services/api-services/map-reports.service';
 import { ToastService } from '../../../../core/services/local/toast.service';
-import { ReportsService } from '../../../../core/services/api-services/reports.service';
+import { REPORT_CATEGORIES, reportCategoryLabel } from '../../../../core/utils/report-category-utils';
 import { MapViewService } from '../../../../shared/components/map-view/map-view.service';
 
+/** per image. 5 images of this size stay under the backend request size limit (30 MB) */
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENTS = 5;
 
 @Component({
   selector: 'app-report-modal',
-  standalone: true,
   imports: [ReactiveFormsModule],
   templateUrl: './report-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ReportModalComponent implements OnInit {
-  private readonly _fb = inject(FormBuilder);
-  protected readonly modal = inject(ReportModalService);
-  private readonly _dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
-  private readonly _fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
-  private readonly _toast = inject(ToastService);
-  private readonly _reportsService = inject(ReportsService);
-  private readonly _mapSelection = inject(MapViewService);
+export class ReportModalComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
+  private readonly toast = inject(ToastService);
+  private readonly mapReportsService = inject(MapReportsService);
+  private readonly mapSelection = inject(MapViewService);
+  private readonly locationService = inject(LocationService);
 
   // protected
-  protected readonly location = this.modal.location;
-  protected readonly categories = getReportCategories();
+  protected readonly modal = inject(ReportModalService);
+
+  /** the location of the report: from the list, or the pin the user dropped (it is not in the list) */
+  protected readonly location = computed(() => {
+    const id = this.modal.locationId();
+    if (!id) return null;
+
+    if (id === CUSTOM_PIN_ID) return this.mapSelection.selected();
+    return this.locationService.locations().find((l) => l.id === id) ?? null;
+  });
+  protected readonly categories = REPORT_CATEGORIES;
   protected readonly reportCategoryLabel = reportCategoryLabel;
   protected readonly ReportSeverity = ReportSeverity;
 
-  protected readonly form = this._fb.nonNullable.group({
+  protected readonly form = this.fb.nonNullable.group({
     severity: [ReportSeverity.Medium],
-    category: [this.categories[0]],
+    category: [REPORT_CATEGORIES[0]],
     description: ['', [Validators.required, Validators.maxLength(1000)]],
   });
 
-  protected readonly attachment = signal<File | null>(null);
+  protected readonly maxAttachments = MAX_ATTACHMENTS;
+  protected readonly maxAttachmentMb = MAX_ATTACHMENT_BYTES / (1024 * 1024);
+
+  /** the images picked for the report (only images, the backend rejects any other file) */
+  protected readonly attachments = signal<readonly ReportAttachment[]>([]);
   protected readonly attachmentError = signal<string | null>(null);
   protected readonly submitting = signal(false);
 
+  constructor() {
+    // the service opens and closes the dialog, so it gets it as soon as it exists
+    afterNextRender(() => this.modal.init(this.dialog().nativeElement));
+
+    inject(DestroyRef).onDestroy(() => this.attachments().forEach((a) => URL.revokeObjectURL(a.previewUrl)));
+  }
+
   protected onBackdropClick(event: MouseEvent): void {
-    if (event.target === this._dialog()?.nativeElement) this.modal.close();
+    if (event.target === this.dialog().nativeElement) this.modal.close();
   }
 
-  // methods
-  ngOnInit(): void {
-    this.modal.init(this._dialog()?.nativeElement!);
+  protected onFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+
+    // clear the input so picking the same file again (after removing it) still fires `change`
+    input.value = '';
+
+    if (picked.length === 0) return;
+
+    const accepted = [...this.attachments()];
+    let error: string | null = null;
+
+    for (const file of picked) {
+      if (!file.type.startsWith('image/')) {
+        error = 'الملف يجب أن يكون صورة';
+        continue;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        error = `حجم الصورة يتجاوز ${this.maxAttachmentMb} ميجابايت`;
+        continue;
+      }
+      // the same image picked twice is added once
+      if (accepted.some((a) => this.isSameFile(a.file, file))) continue;
+
+      if (accepted.length >= MAX_ATTACHMENTS) {
+        error = `الحد الأقصى ${MAX_ATTACHMENTS} صور للبلاغ الواحد`;
+        continue;
+      }
+      accepted.push({ file, previewUrl: URL.createObjectURL(file) });
+    }
+
+    this.attachments.set(accepted);
+    this.attachmentError.set(error);
   }
 
-  protected onFileSelected(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+  protected removeAttachment(index: number): void {
+    const removed = this.attachments()[index];
+    if (!removed) return;
+
+    URL.revokeObjectURL(removed.previewUrl);
+    this.attachments.update((list) => list.filter((_, i) => i !== index));
     this.attachmentError.set(null);
-
-    if (!file) {
-      this.attachment.set(null);
-      return;
-    }
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      this.attachment.set(null);
-      this.attachmentError.set('الملف يجب أن يكون صورة أو فيديو');
-      return;
-    }
-    if (file.size > MAX_ATTACHMENT_BYTES) {
-      this.attachment.set(null);
-      this.attachmentError.set(`حجم الملف يتجاوز ${MAX_ATTACHMENT_BYTES / (1024 * 1024)} ميجابايت`);
-      return;
-    }
-    this.attachment.set(file);
   }
 
   protected formatSize(file: File): string {
@@ -96,21 +139,22 @@ export class ReportModalComponent implements OnInit {
 
     this.submitting.set(true);
 
-    // ReportsService shows the error toast; the form stays filled so the user can try again
-    this._reportsService
-      .create(location, this.form.getRawValue())
+    const images = this.attachments().map((a) => a.file);
+
+    // MapReportsService shows the error toast; the form stays filled so the user can try again
+    this.mapReportsService
+      .create(location, { ...this.form.getRawValue(), images })
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
         next: ({ location: saved }) => {
-          // the saved location (a dropped pin became a real one) is in the list now: select it
-          // again so the inspector shows its updated status
-          this._mapSelection.selectLocation(saved.id);
+          // a dropped pin became a real location: select that one, so the inspector shows it
+          this.mapSelection.selectLocation(saved.id);
 
           this.reset();
           this.modal.close();
-          this._toast.success(
+          this.toast.success(
             'تم إرسال البلاغ',
-            `تم تسجيل بلاغك عن: ${location.title ?? 'موقع مخصص على الخريطة'}`,
+            `تم تسجيل بلاغك عن: ${location.title}`,
           );
         },
         error: () => {},
@@ -118,15 +162,18 @@ export class ReportModalComponent implements OnInit {
   }
 
   // private
-  reset() {
+  private reset(): void {
     this.form.reset({
       severity: ReportSeverity.Medium,
-      category: this.categories[0],
+      category: REPORT_CATEGORIES[0],
       description: '',
     });
-    const fileInput = this._fileInput()?.nativeElement;
-    if (fileInput) fileInput.value = '';
-    this.attachment.set(null);
+    this.attachments().forEach((a) => URL.revokeObjectURL(a.previewUrl));
+    this.attachments.set([]);
     this.attachmentError.set(null);
+  }
+
+  private isSameFile(a: File, b: File): boolean {
+    return a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
   }
 }

@@ -4,7 +4,6 @@ import {
   DestroyRef,
   inject,
   signal,
-  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -19,11 +18,12 @@ import { RegularExpression } from '../../core/constants/regular-expression';
 import { AuthService } from '../../core/services/api-services/auth.service';
 import { OtpComponent } from '../../shared/components/otp/otp.component';
 import { Router } from '@angular/router';
-
-type AuthTab = 'login' | 'register';
-type SubmitState = 'idle' | 'loading' | 'success';
+import { AuthTab, SubmitState } from './login-signup.model';
 
 const PASSWORD_MIN_LENGTH = 8;
+
+/** how long the success state of the button stays on the screen before the page changes */
+const REDIRECT_DELAY_MS = 1200;
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
@@ -33,7 +33,6 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
 
 @Component({
   selector: 'app-login-signup',
-  standalone: true,
   imports: [ReactiveFormsModule, OtpComponent],
   templateUrl: './login-signup.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,7 +58,6 @@ export class LoginSignupComponent {
   readonly loginForm = this._fb.nonNullable.group({
     studentId: ['', [Validators.required]],
     password: ['', [Validators.required]],
-    remember: [true],
   });
 
   readonly registerForm = this._fb.nonNullable.group(
@@ -80,13 +78,11 @@ export class LoginSignupComponent {
     { validators: passwordsMatch },
   );
 
-  private readonly otp = viewChild(OtpComponent);
-
-  private loginTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private redirectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this._destroyRef.onDestroy(() => {
-      if (this.loginTimeoutId) clearTimeout(this.loginTimeoutId);
+      if (this.redirectTimeoutId) clearTimeout(this.redirectTimeoutId);
     });
   }
 
@@ -157,8 +153,7 @@ export class LoginSignupComponent {
         next: () => {
           // logged in and the current user ("me") is loaded, so it is safe to move on
           this.loginState.set('success');
-          // TODO: navigate to the dashboard once it has a route (e.g. inject(Router).navigate(['/']))
-          this.loginTimeoutId = setTimeout(() => this._router.navigate(['/']), 1200);
+          this.goToApp();
         },
         // the service already showed the error toast, only reset the button
         error: () => this.loginState.set('idle'),
@@ -183,12 +178,15 @@ export class LoginSignupComponent {
         next: () => {
           // account created and the current user ("me") is loaded, same as login
           this.registerState.set('success');
-          // TODO: navigate to the dashboard once it has a route (e.g. inject(Router).navigate(['/']))
-          this.loginTimeoutId = setTimeout(() => this._router.navigate(['/']), 1200);
+          this.goToApp();
         },
         // the service already showed the error toast, only reset the button
         error: () => this.registerState.set('idle'),
       });
+  }
+
+  private goToApp(): void {
+    this.redirectTimeoutId = setTimeout(() => this._router.navigate(['/report']), REDIRECT_DELAY_MS);
   }
 
   onResendOtp(): void {
@@ -197,7 +195,7 @@ export class LoginSignupComponent {
   }
 
   onOtpCompleted(_code: string): void {
-    // TODO: verify the code with the API, and call this.otp()?.clear() if it is wrong
+    // TODO: verify the code with the API, and clear the otp component if it is wrong
   }
 
   openHelp(): void {

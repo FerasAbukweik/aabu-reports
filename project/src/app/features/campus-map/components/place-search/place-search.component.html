@@ -1,0 +1,93 @@
+<div
+  class="flex flex-col items-stretch gap-8 rounded-2xl border border-border-subtle bg-surface-card p-4 shadow-sm lg:flex-row lg:items-center"
+>
+  <div class="relative max-w-lg flex-1" data-search>
+    <div class="relative">
+      <span
+        class="material-symbols-outlined pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-[20px] text-text-muted"
+        aria-hidden="true"
+        >search</span
+      >
+      <input
+        #searchInput
+        type="text"
+        role="combobox"
+        aria-label="البحث عن مبنى"
+        aria-autocomplete="list"
+        aria-controls="search-suggestions"
+        [attr.aria-expanded]="searchOpen()"
+        autocomplete="off"
+        class="w-full rounded-xl border border-border-muted bg-surface-bg py-2.5 pe-9 ps-10 text-sm font-medium text-text-primary outline-none transition placeholder:text-text-muted focus:border-border-focus focus:ring-2 focus:ring-border-focus/20"
+        placeholder="ابحث عن اسم الكلية أو المجمع..."
+        [value]="searchQuery()"
+        (input)="onSearchInput(searchInput.value)"
+        (focus)="onSearchInput(searchInput.value)"
+        (keydown.escape)="searchOpen.set(false)"
+      />
+      @if (searchQuery()) {
+        <button
+          type="button"
+          class="absolute end-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-text-muted hover:text-text-primary"
+          aria-label="مسح البحث"
+          (click)="clearSearch()"
+        >
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+        </button>
+      }
+    </div>
+
+    @if (searchOpen()) {
+      <div
+        id="search-suggestions"
+        role="listbox"
+        class="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-border-subtle bg-surface-elevated p-1.5 shadow-xl"
+      >
+        @for (result of searchResults(); track result.id) {
+          <button
+            type="button"
+            role="option"
+            class="flex w-full items-center gap-2 rounded-lg p-2.5 text-start transition hover:bg-surface-card-subtle"
+            (click)="pickSearchResult(result)"
+          >
+            <span class="material-symbols-outlined text-[18px] text-primary" aria-hidden="true"
+              >location_on</span
+            >
+            <span class="text-xs font-bold text-text-primary">{{ result.title }}</span>
+          </button>
+        } @empty {
+          <div class="p-3 text-center text-xs font-medium text-text-secondary">
+            لا توجد نتائج مطابقة لـ "{{ searchQuery() }}" - جرّب البحث باسم الكلية أو المجمع
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+    <span class="me-1 flex shrink-0 items-center gap-1 text-xs font-bold text-text-secondary">
+      <span class="material-symbols-outlined text-[16px] text-accent" aria-hidden="true"
+        >recommend</span
+      >
+      أماكن شائعة:
+    </span>
+    @for (place of quickPlaces(); track place.id) {
+      <button
+        type="button"
+        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition active:scale-95"
+        [class]="
+          selectedLocationId() === place.id
+            ? 'border-primary bg-primary text-on-primary'
+            : 'border-border-muted bg-surface-card-subtle text-text-primary hover:bg-border-subtle'
+        "
+        [attr.aria-pressed]="selectedLocationId() === place.id"
+        (click)="choose(place)"
+      >
+        <span
+          class="tone-dot h-2 w-2 rounded-full"
+          [class]="locationStatusTone[place.status]"
+        ></span>
+        {{ place.title }}
+      </button>
+    }
+  </div>
+</div>

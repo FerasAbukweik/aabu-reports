@@ -1,0 +1,129 @@
+<button
+  type="button"
+  class="relative flex h-11 w-11 items-center justify-center rounded-xl text-on-primary/80 transition hover:bg-on-primary/10 hover:text-on-primary"
+  [class]="isOpen() ? 'bg-on-primary/10' : ''"
+  aria-haspopup="dialog"
+  aria-controls="notification-panel"
+  [attr.aria-expanded]="isOpen()"
+  [attr.aria-label]="'الإشعارات (' + unreadCount() + ' جديدة)'"
+  (click)="toggle()"
+>
+  <span class="material-symbols-outlined text-[22px]" aria-hidden="true">notifications</span>
+  @if (unreadCount() > 0) {
+    <span
+      class="absolute start-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-status-error px-1 text-[10px] font-bold text-text-inverse shadow"
+    >
+      {{ badgeText() }}
+    </span>
+  }
+</button>
+
+@if (isOpen()) {
+  <!-- fixed under the header, so it never goes outside the screen on small devices -->
+  <div
+    id="notification-panel"
+    role="dialog"
+    aria-label="الإشعارات"
+    class="fixed end-3 top-[4.5rem] z-50 flex max-h-[min(32rem,calc(100svh-6rem))] w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated text-text-primary shadow-xl lg:end-8"
+  >
+    <div class="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
+      <div class="flex items-center gap-2">
+        <h2 class="text-sm font-black">الإشعارات</h2>
+        @if (unreadCount() > 0) {
+          <span class="tone-chip tone-info rounded border-0 px-1.5 text-[10px] font-bold">
+            {{ unreadCount() }} جديد
+          </span>
+        }
+      </div>
+    </div>
+
+    <ul class="divide-y divide-border-subtle overflow-y-auto overscroll-contain">
+      @for (n of notifications(); track n.id) {
+        @let meta = typeMeta[n.type];
+        <li>
+          <div
+            class="flex w-full items-start gap-3 px-4 py-3 text-start"
+            [class]="n.isRead ? '' : 'bg-primary-container/30'"
+          >
+            <!-- icon of the type -->
+            <span
+              class="tone-chip flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
+              [class]="statusTone[meta.status]"
+            >
+              <span class="material-symbols-outlined text-[22px]" aria-hidden="true">{{ meta.icon }}</span>
+            </span>
+
+            <span class="min-w-0 flex-1">
+              <span class="flex items-center justify-between gap-2">
+                <!-- what it is about -->
+                <span
+                  class="tone-chip rounded border-0 px-1.5 py-0.5 text-[10px] font-bold"
+                  [class]="statusTone[meta.status]"
+                >
+                  {{ meta.label }}
+                </span>
+                <!-- the date -->
+                <time
+                  class="shrink-0 text-[11px] font-semibold text-text-muted"
+                  [attr.datetime]="n.createdAt"
+                  [title]="formatFullDate(n.createdAt)"
+                >
+                  {{ formatRelativeDate(n.createdAt) }}
+                </time>
+              </span>
+
+              <!-- the text -->
+              <span class="mt-1 block text-sm leading-snug" [class.font-bold]="!n.isRead" [class.font-medium]="n.isRead">
+                {{ n.message }}
+              </span>
+
+              <!-- the thing it is about (the location of the report) -->
+              @if (n.subject) {
+                <span class="mt-1 flex items-center gap-1 text-xs font-semibold text-text-secondary">
+                  <span class="material-symbols-outlined text-[14px]" aria-hidden="true">location_on</span>
+                  <span class="truncate">{{ n.subject }}</span>
+                </span>
+              }
+            </span>
+
+            <!-- seen or not -->
+            @if (!n.isRead) {
+              <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-accent" role="img" aria-label="غير مقروء"></span>
+            }
+          </div>
+        </li>
+      } @empty {
+        @if (!hasLoadFailed()) {
+          <li class="flex flex-col items-center gap-2 px-4 py-10 text-center text-text-muted">
+            @if (isLoading() || isMoreAvailable()) {
+              <span class="text-sm font-semibold" role="status">جارٍ تحميل الإشعارات...</span>
+            } @else {
+              <span class="material-symbols-outlined text-[36px]" aria-hidden="true">notifications_off</span>
+              <span class="text-sm font-semibold">لا توجد إشعارات حاليًا</span>
+            }
+          </li>
+        }
+      }
+
+      <!-- the pages load by themselves: the sentinel asks for the next one (the first one too) when it is on the screen.
+           It is gone while a page loads, and comes back after it, so a short list keeps loading until it fills the panel -->
+      @if (hasLoadFailed()) {
+        <li>
+          <button
+            type="button"
+            class="w-full px-4 py-3 text-center text-xs font-bold text-primary transition hover:bg-surface-card-subtle"
+            (click)="loadMore()"
+          >
+            تعذر تحميل الإشعارات، اضغط لإعادة المحاولة
+          </button>
+        </li>
+      } @else if (isLoading()) {
+        @if (notifications().length > 0) {
+          <li class="py-2 text-center text-[11px] font-semibold text-text-muted" role="status">جارٍ تحميل المزيد...</li>
+        }
+      } @else if (isMoreAvailable() && !isMarkingAsRead()) {
+        <li class="h-px" aria-hidden="true" appIsVisible (visible)="loadMore()"></li>
+      }
+    </ul>
+  </div>
+}

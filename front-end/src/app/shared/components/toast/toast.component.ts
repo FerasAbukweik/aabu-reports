@@ -8,7 +8,6 @@ import { statusTone } from '../../../core/utils/status-utils';
  */
 @Component({
   selector: 'app-toast',
-  standalone: true,
   templateUrl: './toast.component.html',
   styleUrl: './toast.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

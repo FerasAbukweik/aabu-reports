@@ -1,4 +1,4 @@
-import { MapCoordinates } from '../../interfaces/map-Coordinates';
+import { MapCoordinates } from '../../interfaces/map-coordinates';
 import { ReportCreateDTO } from './report-create-dto';
 
 /** POST /report/coordinates: a report for a spot the user dropped on the map */

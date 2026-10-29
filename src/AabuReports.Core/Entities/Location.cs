@@ -21,7 +21,7 @@ public class Location
     
 
     // not recognized by EF
-    public ReportState? State { get; set; }
+    public ReportStateEnum? State { get; set; }
     public int? ReportsCount { get; set; }
 
 

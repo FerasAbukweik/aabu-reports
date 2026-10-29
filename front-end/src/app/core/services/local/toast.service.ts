@@ -22,13 +22,13 @@ export class ToastService {
   /** every toast, including the ones still waiting for a free slot */
   private readonly _allToasts = signal<Toast[]>([]);
 
-  /** what the component renders: the newest MAX_VISIBLE toasts, newest first */
+  /** what the component renders: the oldest MAX_VISIBLE toasts, newest first (newer ones wait in the queue) */
   readonly visibleToasts = computed(() => this._allToasts().slice(0, MAX_VISIBLE).reverse());
 
   /** how many toasts are waiting in the queue (not visible right now) */
   readonly extraCount = computed(() => Math.max(0, this._allToasts().length - MAX_VISIBLE));
 
-  /** ids the user is hovering on, nothing is removed while this is not empty */
+  /** true while the user hovers or focuses the toasts, nothing is removed meanwhile */
   private isPause = false;
 
   private intervalHandle: ReturnType<typeof setInterval> | null = null;

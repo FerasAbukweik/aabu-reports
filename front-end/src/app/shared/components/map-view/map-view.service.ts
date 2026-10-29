@@ -1,18 +1,15 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { CAMPUS_ZOOM, FOCUS_ZOOM } from './map-view.bounds';
-import { CUSTOM_PIN_ID } from '../../../core/constants/google-maps';
+import { FocusableMap } from './map-view.model';
+import { CUSTOM_PIN_ID } from '../../../core/constants/location';
 import { LocationDTO } from '../../../core/DTOs/location/location-dto';
-import { ReportState } from '../../../core/enums/buildings-status';
-import { LocationTypeEnum } from '../../../core/enums/location-type';
-import { MapCoordinates } from '../../../core/interfaces/map-Coordinates';
+import { ReportState } from '../../../core/enums/report-state.enum';
+import { LocationTypeEnum } from '../../../core/enums/location-type.enum';
+import { MapCoordinates } from '../../../core/interfaces/map-coordinates';
 import { LocationService } from '../../../core/services/api-services/location.service';
 
-/** the minimal part of google.maps.Map the service needs */
-interface FocusableMap {
-  panTo(target: MapCoordinates): void;
-  setZoom(zoom: number): void;
-  getZoom(): number | undefined;
-}
+/** what is selected: a location of the list (by id), or the pin the user dropped on an empty spot */
+type Selection = { locationId: string } | { droppedPin: MapCoordinates } | null;
 
 /**
  * The single source of truth for the map: what is selected and where the camera points.
@@ -23,19 +20,41 @@ export class MapViewService {
   private readonly locations = inject(LocationService).locations;
   private map?: FocusableMap;
 
-  /** the selection resolved to a full location object */
-  private readonly _selected = signal<LocationDTO | null>(null);
-  readonly selected = this._selected.asReadonly();
+  private readonly selection = signal<Selection>(null);
+
+  /**
+   * The selection resolved to a full location. A location of the list is looked up by its id every time,
+   * so it is never old: when the list changes (a report was sent, a status changed) this follows it.
+   */
+  readonly selected = computed<LocationDTO | null>(() => {
+    const selection = this.selection();
+    if (!selection) return null;
+
+    if ('locationId' in selection) {
+      return this.locations().find((l) => l.id === selection.locationId) ?? null;
+    }
+
+    return {
+      id: CUSTOM_PIN_ID,
+      title: 'موقع مخصص على الخريطة',
+      coordinates: selection.droppedPin,
+      status: ReportState.Normal,
+      type: LocationTypeEnum.Pin,
+      reportsCount: 0,
+    };
+  });
 
   /** the id of the selected location from the list (building or pin); null when nothing, or the dropped pin, is selected */
   readonly selectedLocationId = computed(() => {
-    const item = this._selected();
-    return item && item.id !== CUSTOM_PIN_ID ? item.id : null;
+    const selection = this.selection();
+    return selection && 'locationId' in selection ? selection.locationId : null;
   });
-  /** the selection is a pin (a listed one or the one the user dropped) */
-  readonly isCustomPin = computed(() => this._selected()?.type === LocationTypeEnum.Pin);
+
   /** the selection is the pin the user dropped on an empty spot (it is not in the list) */
-  readonly isDroppedPin = computed(() => this._selected()?.id === CUSTOM_PIN_ID);
+  readonly isDroppedPin = computed(() => {
+    const selection = this.selection();
+    return !!selection && 'droppedPin' in selection;
+  });
 
   // ---------- map registration ----------
   registerMap(map: FocusableMap): void {
@@ -48,22 +67,15 @@ export class MapViewService {
 
   // ---------- selection ----------
   selectLocation(id: string): void {
-    this._selected.set(this.locations().find((b) => b.id === id) ?? null);
+    this.selection.set({ locationId: id });
   }
 
   selectPin(coordinates: MapCoordinates): void {
-    this._selected.set({
-      id: CUSTOM_PIN_ID,
-      title: 'موقع مخصص على الخريطة',
-      coordinates: coordinates,
-      status: ReportState.Normal,
-      type: LocationTypeEnum.Pin,
-      reportsCount: 0,
-    });
+    this.selection.set({ droppedPin: coordinates });
   }
 
   clear(): void {
-    this._selected.set(null);
+    this.selection.set(null);
   }
 
   // ---------- focus ----------
@@ -74,9 +86,9 @@ export class MapViewService {
     this.map.setZoom(Math.max(this.map.getZoom() ?? CAMPUS_ZOOM, FOCUS_ZOOM));
   }
 
-  /** focus on the currently selected place (building or custom pin), if any */
+  /** focus on the currently selected place (building or pin), if any */
   focusSelected(): void {
-    const target = this._selected()?.coordinates;
+    const target = this.selected()?.coordinates;
     if (target) this.focusOn(target);
   }
 

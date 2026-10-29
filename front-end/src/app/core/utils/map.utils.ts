@@ -1,5 +1,5 @@
 import { LocationDTO } from '../DTOs/location/location-dto';
-import { MapCoordinates } from '../interfaces/map-Coordinates';
+import { MapCoordinates } from '../interfaces/map-coordinates';
 
 /** The building closest to a point (flat approximation, good enough at campus scale). */
 export function nearestBuilding(

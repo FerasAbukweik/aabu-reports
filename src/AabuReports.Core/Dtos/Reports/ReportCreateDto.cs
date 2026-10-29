@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using AabuReports.Core.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace AabuReports.Core.Dtos.Reports;
 
@@ -16,4 +17,7 @@ public class ReportCreateDto
     [Required]
     [StringLength(1000, MinimumLength = 1)]
     public required string Description { get; set; }
+
+    /// <summary> optional images of the problem (sent as multipart/form-data, only image files are accepted) </summary>
+    public List<IFormFile> Images { get; set; } = [];
 }

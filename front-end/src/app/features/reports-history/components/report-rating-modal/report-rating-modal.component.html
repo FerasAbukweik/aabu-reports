@@ -1,0 +1,64 @@
+<app-dialog
+  [open]="!!row()"
+  title="تقييم جودة الصيانة"
+  [subtitle]="row()?.shortId"
+  icon="star"
+  maxWidth="max-w-md"
+  (closed)="closed.emit()"
+>
+  @if (row(); as r) {
+    <div class="flex flex-col items-center gap-4 text-center">
+      <p class="text-sm font-medium text-text-secondary">
+        تم إنهاء أعمال الصيانة لهذا البلاغ. يُرجى تقييم سرعة الاستجابة وجودة العمل المنجز:
+      </p>
+
+      <!-- Star picker -->
+      <div
+        class="flex items-center justify-center gap-1 py-1"
+        role="radiogroup"
+        aria-label="تقييم البلاغ من 1 إلى 5"
+        (mouseleave)="hovered.set(0)"
+      >
+        @for (star of stars; track star) {
+          <button
+            type="button"
+            role="radio"
+            class="rounded-lg p-1 transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-border-focus"
+            [class]="(hovered() || rating()) >= star ? 'text-accent' : 'text-border-muted'"
+            [attr.aria-checked]="rating() === star"
+            [attr.aria-label]="star + ' - ' + ratingLabel[star]"
+            (click)="rating.set(star)"
+            (mouseenter)="hovered.set(star)"
+            (focus)="hovered.set(star)"
+            (blur)="hovered.set(0)"
+          >
+            <span
+              class="material-symbols-outlined text-[38px]"
+              style="font-variation-settings: 'FILL' 1"
+              aria-hidden="true"
+              >star</span
+            >
+          </button>
+        }
+      </div>
+
+      <p class="h-5 text-sm font-extrabold text-primary" aria-live="polite">
+        {{ ratingLabel[hovered() || rating()] ?? '' }}
+      </p>
+
+      <div class="flex w-full items-center gap-3 border-t border-border-subtle pt-4">
+        <button
+          type="button"
+          class="btn btn-accent flex-1 py-2.5 text-sm"
+          [disabled]="rating() === 0 || submitting()"
+          (click)="submit()"
+        >
+          {{ submitting() ? 'جارٍ الإرسال...' : 'إرسال التقييم' }}
+        </button>
+        <button type="button" class="btn btn-subtle flex-1 py-2.5 text-sm" (click)="closed.emit()">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  }
+</app-dialog>

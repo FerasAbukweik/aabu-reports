@@ -1,0 +1,94 @@
+<div
+  class="flex flex-col gap-4 rounded-2xl border border-border-subtle bg-surface-card p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+>
+  <div class="flex flex-1 flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+    <!-- Search: icon + input + clear button are flex children (nothing is positioned over the text) -->
+    <div class="field-wrapper min-w-0 flex-1">
+      <span class="material-symbols-outlined field-icon text-[20px]" aria-hidden="true"
+        >search</span
+      >
+      <input
+        #searchInput
+        type="text"
+        autocomplete="off"
+        class="field-input min-w-0 !ps-0 !text-sm font-medium"
+        [attr.aria-label]="searchLabel()"
+        [placeholder]="placeholder()"
+        [value]="query()"
+        (input)="query.set(searchInput.value)"
+        (keydown.enter)="showApply() && !applyDisabled() && applied.emit()"
+      />
+      @if (query()) {
+        <button type="button" class="field-icon-btn" aria-label="مسح البحث" (click)="query.set('')">
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+        </button>
+      }
+    </div>
+
+    <!-- Filters: the select fills the whole box (so its list is as wide as the box), the icons sit over it -->
+    @for (filter of filters(); track filter.key) {
+      <div class="relative w-full sm:w-52">
+        <select
+          class="w-full cursor-pointer appearance-none rounded-lg border border-transparent bg-surface-card-subtle py-3 pr-11 pl-10 text-sm font-medium text-text-primary outline-none transition focus:shadow-md"
+          [attr.aria-label]="filter.label"
+          (change)="setFilter(filter.key, $any($event.target).value)"
+        >
+          <option value="" [selected]="valueOf(filter.key) === ''">{{ filter.allLabel }}</option>
+          @for (option of filter.options; track option.value) {
+            <option [value]="option.value" [selected]="valueOf(filter.key) === option.value">
+              {{ option.label }}
+            </option>
+          }
+        </select>
+
+        <!-- Filter Icon (Positioned on the Right for RTL) -->
+        <span
+          class="material-symbols-outlined pointer-events-none absolute top-1/2 -translate-y-1/2 right-3 flex items-center text-[20px] text-text-muted"
+          aria-hidden="true"
+          >{{ filter.icon }}</span
+        >
+
+        <!-- Dropdown Arrow (Positioned on the Left for RTL) -->
+        <span
+          class="material-symbols-outlined pointer-events-none absolute top-1/2 -translate-y-1/2 left-3 flex items-center text-[20px] text-text-muted"
+          aria-hidden="true"
+          >expand_more</span
+        >
+      </div>
+    }
+  </div>
+
+  <div class="flex items-center justify-between gap-3 sm:justify-end">
+    @if (resultsLabel(); as label) {
+      <div
+        class="flex items-center gap-1 rounded-lg bg-surface-card-subtle px-3 py-1.5 text-xs font-bold text-text-secondary"
+        role="status"
+      >
+        <span>عرض النتائج:</span>
+        <span class="font-mono text-primary">{{ label }}</span>
+      </div>
+    }
+
+    @if (showApply()) {
+      <button
+        type="button"
+        class="btn btn-primary px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+        [disabled]="applyDisabled()"
+        (click)="applied.emit()"
+      >
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">filter_alt</span>
+        <span>تطبيق التصفية</span>
+      </button>
+    }
+
+    <button
+      type="button"
+      class="link-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+      [disabled]="!hasActiveFilters()"
+      (click)="reset()"
+    >
+      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">restart_alt</span>
+      إعادة الضبط
+    </button>
+  </div>
+</div>

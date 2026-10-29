@@ -19,17 +19,17 @@ import { CAMPUS_CENTER, CAMPUS_ZOOM, isInsideCampusBounds } from './map-view.bou
 import { LocationDTO } from '../../../core/DTOs/location/location-dto';
 import { nearestBuilding } from '../../../core/utils/map.utils';
 import { LocationService } from '../../../core/services/api-services/location.service';
-import { GoogleMapsApi, googleMapsAuthFailed, loadGoogleMaps } from './google-maps.loader';
+import { googleMapsAuthFailed, loadGoogleMaps } from './google-maps.loader';
 import { MapViewService } from './map-view.service';
-import { ReportState } from '../../../core/enums/buildings-status';
-import { LocationTypeEnum } from '../../../core/enums/location-type';
+import { ReportState } from '../../../core/enums/report-state.enum';
+import { LocationTypeEnum } from '../../../core/enums/location-type.enum';
 import {
-  getLocationStatuses,
+  LOCATION_STATUSES,
   locationStatusLabel,
   locationStatusTone,
 } from '../../../core/utils/location-util';
-import { MapCoordinates } from '../../../core/interfaces/map-Coordinates';
-import { LocateResult } from './map-view.model';
+import { MapCoordinates } from '../../../core/interfaces/map-coordinates';
+import { GoogleMapsApi, LocateResult } from './map-view.model';
 
 /**
  * The interactive campus map. The selection lives in MapViewService: a click on a marker, on an
@@ -37,7 +37,6 @@ import { LocateResult } from './map-view.model';
  */
 @Component({
   selector: 'app-map-view',
-  standalone: true,
   templateUrl: './map-view.component.html',
   styleUrl: './map-view.component.css',
   // the markers are built with document.createElement and handed to Google Maps,
@@ -56,22 +55,20 @@ export class MapViewComponent {
   readonly located = output<LocateResult>();
   /** the "details" chip was tapped (small screens: the inspector is below the map) */
   readonly detailsRequested = output<void>();
-  protected readonly state = signal<'loading' | 'ready' | 'error'>('loading');
 
   // protected
+  protected readonly state = signal<'loading' | 'ready' | 'error'>('loading');
   protected readonly locationStatusTone = locationStatusTone;
   protected readonly locationStatusLabel = locationStatusLabel;
+  protected readonly selected = this._selection.selected;
 
-  // computed
   protected readonly failed = computed(() => this.state() === 'error' || googleMapsAuthFailed());
   protected readonly legendItems = computed(() =>
-    getLocationStatuses().map((status) => ({
+    LOCATION_STATUSES.map((status) => ({
       status,
       count: this._locations().filter((l) => l.status === status).length,
     })),
   );
-  // the template keeps using selectedItem()
-  protected readonly selectedItem = this._selection.selected;
 
   private readonly canvas = viewChild.required<ElementRef<HTMLElement>>('canvas');
   private readonly mapReady = signal(false);
@@ -124,9 +121,7 @@ export class MapViewComponent {
       if (this.destroyed) return;
 
       // a retry must not create a second map on the same element
-      if (!this.map) {
-        this.createMap();
-      }
+      this.map ??= this.createMap();
 
       this.mapReady.set(true);
       this.state.set('ready');
@@ -135,9 +130,9 @@ export class MapViewComponent {
     }
   }
 
-  private createMap(): void {
+  private createMap(): any {
     const touch = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-    this.map = new this.api!.Map(this.canvas().nativeElement, {
+    const map = new this.api!.Map(this.canvas().nativeElement, {
       center: CAMPUS_CENTER,
       zoom: CAMPUS_ZOOM,
       mapId: GOOGLE_MAPS_MAP_ID,
@@ -149,7 +144,7 @@ export class MapViewComponent {
       zoomControl: false,
       clickableIcons: false,
     });
-    this.map.addListener('click', ({ latLng }: any) => {
+    map.addListener('click', ({ latLng }: any) => {
       if (!latLng) return;
       this._selection.selectPin({
         lat: Number(latLng.lat().toFixed(6)),
@@ -157,7 +152,8 @@ export class MapViewComponent {
       });
     });
     // lets the service focus the map from anywhere (search box, inspector, ...)
-    this._selection.registerMap(this.map);
+    this._selection.registerMap(map);
+    return map;
   }
 
   protected retry(): void {
@@ -169,22 +165,18 @@ export class MapViewComponent {
   // ---------- markers ----------
   private renderLocations(locations: readonly LocationDTO[]): void {
     this.clearMarkers();
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
     for (const location of locations) {
-      if (location.type === LocationTypeEnum.Pin) {
-        this.renderListedPin(location);
-        continue;
-      }
-      this.renderBuilding(location, reduceMotion);
+      if (location.type === LocationTypeEnum.Pin) this.renderListedPin(location);
+      else this.renderBuilding(location);
     }
   }
 
-  private renderBuilding(building: LocationDTO, reduceMotion: boolean): void {
+  private renderBuilding(building: LocationDTO): void {
     const dot = document.createElement('span');
     dot.className = 'tone-dot';
     // only a building with an active report pulses
-    if (building.status === ReportState.Pending && !reduceMotion) {
+    if (building.status === ReportState.Pending && !this.prefersReducedMotion()) {
       dot.animate(
         [
           {
@@ -198,7 +190,7 @@ export class MapViewComponent {
     }
 
     const name = document.createElement('span');
-    name.textContent = building.title ?? '';
+    name.textContent = building.title;
 
     const chip = document.createElement('div');
     chip.className = 'tone-chip';
@@ -216,7 +208,7 @@ export class MapViewComponent {
       map: this.map,
       position: { lat: building.coordinates.lat, lng: building.coordinates.lng },
       content: element,
-      title: building.title ?? '',
+      title: building.title,
       gmpClickable: true,
     });
     marker.addEventListener('gmp-click', () => this._selection.selectLocation(building.id));
@@ -232,7 +224,7 @@ export class MapViewComponent {
       map: this.map,
       position: { lat: pin.coordinates.lat, lng: pin.coordinates.lng },
       content: element,
-      title: pin.title ?? locationStatusLabel[pin.status],
+      title: pin.title,
       gmpClickable: true,
     });
     marker.addEventListener('gmp-click', () => this._selection.selectLocation(pin.id));
@@ -240,11 +232,10 @@ export class MapViewComponent {
   }
 
   private createPinElement(): HTMLElement {
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     // teardrop head + a ground pulse; the tip of the drop sits exactly on the coordinates
     const content = document.createElement('div');
     content.className = 'map-pin';
-    if (reduceMotion) content.classList.add('map-pin--static');
+    if (this.prefersReducedMotion()) content.classList.add('map-pin--static');
     const pulse = document.createElement('span');
     pulse.className = 'map-pin__pulse';
     const head = document.createElement('span');
@@ -285,6 +276,10 @@ export class MapViewComponent {
   private removePin(): void {
     if (this.pinMarker) this.pinMarker.map = null;
     this.pinMarker = undefined;
+  }
+
+  private prefersReducedMotion(): boolean {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   }
 
   // ---------- actions ----------

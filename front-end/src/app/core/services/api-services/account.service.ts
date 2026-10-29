@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import { MeDTO } from '../../DTOs/account/me-dto';
 import { RegisterDTO } from '../../DTOs/account/register-dto';
-import { toastError } from '../../utils/error-toast';
+import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { AccountApiService } from '../api/account-api.service';
 import { ToastService } from '../local/toast.service';
 import { AuthService } from './auth.service';
@@ -40,15 +40,13 @@ export class AccountService {
   // private
   private registerErrorMessage(error: HttpErrorResponse): string {
     switch (error.status) {
-      case 0:
-        return 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت وحاول مرة أخرى';
       case 400:
         return 'تحقق من البيانات المدخلة (الرقم الجامعي 10 أرقام، وكلمة السر 8 خانات على الأقل)';
       case 409:
         // the api answers e.g. "Already in use: student id, email"
         return typeof error.error === 'string' ? error.error : 'Already in use';
       default:
-        return 'حدث خطأ غير متوقع، حاول مرة أخرى لاحقًا';
+        return defaultErrorReason(error);
     }
   }
 }

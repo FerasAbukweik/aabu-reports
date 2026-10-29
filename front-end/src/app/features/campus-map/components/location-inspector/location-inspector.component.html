@@ -83,13 +83,15 @@
                 }
               </dd>
             </div>
-            <div class="flex items-center justify-between gap-3 py-1">
-              <dt class="font-bold text-text-secondary">زمن الاستجابة التقديري:</dt>
-              <dd class="flex items-center gap-1 font-extrabold text-status-success-text">
-                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">bolt</span>
-                أقل من {{ avgResponseHours() }} ساعة
-              </dd>
-            </div>
+            @if (avgResponseHours(); as hours) {
+              <div class="flex items-center justify-between gap-3 py-1">
+                <dt class="font-bold text-text-secondary">زمن الاستجابة التقديري:</dt>
+                <dd class="flex items-center gap-1 font-extrabold text-status-success-text">
+                  <span class="material-symbols-outlined text-[16px]" aria-hidden="true">bolt</span>
+                  أقل من {{ hours }} ساعة
+                </dd>
+              </div>
+            }
           </dl>
 
           <!-- Reports of this location, every one gets the tone of its state -->
@@ -100,8 +102,21 @@
             </h4>
 
             @if (reports().length === 0) {
-              @if (isLoading()) {
+              @if (isLoading() || (isMoreAvailable() && !hasFailed())) {
                 <p class="text-[11px] font-semibold text-text-secondary" role="status">جارٍ تحميل البلاغات...</p>
+
+                <!-- the first page: the list is empty, so the sentinel is on the screen at once and asks for it -->
+                @if (!isLoading()) {
+                  <div class="h-px" aria-hidden="true" appIsVisible (visible)="loadMoreReportsRequested.emit()"></div>
+                }
+              } @else if (hasFailed()) {
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border-subtle bg-surface-bg p-3 text-center text-[11px] font-bold text-primary transition hover:underline"
+                  (click)="loadMoreReportsRequested.emit()"
+                >
+                  تعذر تحميل البلاغات، اضغط لإعادة المحاولة
+                </button>
               } @else {
                 <p class="rounded-xl border border-border-subtle bg-surface-bg p-3 text-center text-[11px] font-semibold text-text-secondary">
                   لا توجد بلاغات على هذا الموقع
@@ -127,8 +142,18 @@
 
                 <!-- one sentinel after the list: it is gone while a page loads and once there is no more,
                      and it comes back after each page, so a short list keeps loading until it fills the box -->
-                @if (isMoreAvailable() && !isLoading()) {
-                  <div class="h-px" aria-hidden="true" appIsVisable (visible)="loadMoreReportsRequested.emit()"></div>
+                @if (isMoreAvailable() && !isLoading() && !hasFailed()) {
+                  <div class="h-px" aria-hidden="true" appIsVisible (visible)="loadMoreReportsRequested.emit()"></div>
+                }
+
+                @if (hasFailed()) {
+                  <button
+                    type="button"
+                    class="w-full py-2 text-center text-[11px] font-bold text-primary transition hover:underline"
+                    (click)="loadMoreReportsRequested.emit()"
+                  >
+                    تعذر تحميل المزيد، اضغط لإعادة المحاولة
+                  </button>
                 }
 
                 @if (isLoading()) {

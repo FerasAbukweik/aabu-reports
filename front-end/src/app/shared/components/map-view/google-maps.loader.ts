@@ -1,16 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { signal } from '@angular/core';
 import { GOOGLE_MAPS_API_KEY } from '../../../core/constants/google-maps';
+import { GoogleMapsApi } from './map-view.model';
 
 // Loads the Google Maps JavaScript API once, without an npm package.
-// The types are `any` on purpose: install `@types/google.maps` if you want full typings.
-
-export interface GoogleMapsApi {
-  Map: any;
-  AdvancedMarkerElement: any;
-  PinElement: any;
-  event: any;
-}
 
 declare global {
   interface Window {

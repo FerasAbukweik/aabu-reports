@@ -3,8 +3,8 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { map, Observable, tap } from 'rxjs';
 import { LocationDTO } from '../../DTOs/location/location-dto';
 import { LocationUpdateDTO } from '../../DTOs/location/location-update-dto';
-import { LocationTypeEnum } from '../../enums/location-type';
-import { toastError } from '../../utils/error-toast';
+import { LocationTypeEnum } from '../../enums/location-type.enum';
+import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { LocationApiService } from '../api/location-api.service';
 import { ToastService } from '../local/toast.service';
 
@@ -74,13 +74,8 @@ export class LocationService {
   }
 
   // private
-  private errorMessage(
-    error: HttpErrorResponse,
-    action: 'load' | 'create' | 'update' | 'delete',
-  ): string {
+  private errorMessage(error: HttpErrorResponse, action: 'load' | 'update' | 'delete'): string {
     switch (error.status) {
-      case 0:
-        return 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت وحاول مرة أخرى';
       case 400:
         return 'تحقق من بيانات الموقع ثم حاول مرة أخرى';
       case 401:
@@ -91,7 +86,7 @@ export class LocationService {
       case 404:
         return 'الموقع غير موجود';
       default:
-        return 'حدث خطأ غير متوقع، حاول مرة أخرى لاحقًا';
+        return defaultErrorReason(error);
     }
   }
 }

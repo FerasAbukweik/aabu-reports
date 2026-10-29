@@ -1,0 +1,81 @@
+<div class="flex flex-col gap-6" id="map">
+  <!-- Title -->
+  <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+    <div>
+      <nav
+        aria-label="مسار التنقل"
+        class="mb-2 flex items-center gap-2 text-xs font-bold text-text-secondary"
+      >
+        <span>جامعة آل البيت</span>
+        <span
+          class="material-symbols-outlined text-[14px] text-text-muted rtl:rotate-180"
+          aria-hidden="true"
+          >chevron_right</span
+        >
+        <span>البوابة الطلابية</span>
+        <span
+          class="material-symbols-outlined text-[14px] text-text-muted rtl:rotate-180"
+          aria-hidden="true"
+          >chevron_right</span
+        >
+        <span class="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary"
+          >خريطة الحرم وإبلاغ المشاكل</span
+        >
+      </nav>
+      <h1 class="flex items-center gap-2.5 text-2xl font-black text-primary lg:text-3xl">
+        <span class="material-symbols-outlined text-[32px] text-accent" aria-hidden="true"
+          >map</span
+        >
+        <span>الخريطة التفاعلية لمرافق الحرم الجامعي</span>
+      </h1>
+      <p class="mt-1 max-w-2xl text-sm font-medium text-text-secondary">
+        حدّد المبنى أو المرفق المتضرر بدقة عبر الخريطة المعمارية لفتح طلب صيانة فوري ومتابعة خط سير
+        المعالجة
+      </p>
+    </div>
+
+    <div
+      class="flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-card px-4 py-2.5 text-xs shadow-sm"
+    >
+      <span
+        class="h-2.5 w-2.5 animate-pulse rounded-full bg-status-success motion-reduce:animate-none"
+      ></span>
+      <span class="font-bold text-text-secondary">نظام الصيانة والاستجابة:</span>
+      <span class="font-extrabold text-status-success-text">متاح لاستقبال البلاغات 24/7</span>
+    </div>
+  </div>
+
+  <!-- Search + quick places (select and focus go through MapViewService) -->
+  <app-place-search />
+
+  <!-- Map + inspector -->
+  <div class="grid grid-cols-1 items-stretch gap-5 lg:min-h-[620px] lg:grid-cols-12">
+    <!-- Map -->
+    <app-map-view
+      class="lg:col-span-8"
+      (located)="onLocated($event)"
+      (detailsRequested)="scrollToInspector()"
+    />
+
+    <!-- Inspector -->
+    <app-location-inspector
+      #inspector
+      class="scroll-mt-20 lg:col-span-4"
+      [location]="selected()"
+      [reports]="locationReports()"
+      [isLoading]="isLocationReportsLoading()"
+      [isMoreAvailable]="isMoreLocationReportsAvailable()"
+      [hasFailed]="hasLocationReportsFailed()"
+      (loadMoreReportsRequested)="loadMoreReports()"
+      [avgResponseHours]="inspectorAvgResponseHours()"
+      (reportRequested)="openReport()"
+      (selectionReset)="resetSelection()"
+      (focusRequested)="focusSelection()"
+    />
+  </div>
+
+  <!-- Stats -->
+  <app-stat-cards [cards]="statCards()" ariaLabel="إحصائيات الصيانة وسرعة الاستجابة" />
+</div>
+
+<app-report-modal />

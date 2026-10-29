@@ -1,4 +1,4 @@
-import { ReportState } from '../../enums/buildings-status';
+import { ReportState } from '../../enums/report-state.enum';
 
 /** PUT /report/state (admin only) */
 export interface ReportUpdateStateDTO {

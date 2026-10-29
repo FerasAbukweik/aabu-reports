@@ -3,14 +3,14 @@
     @if (card.route) {
       <a
         [routerLink]="card.route"
-        class="stat-card group flex grow basis-72 items-center justify-between rounded-2xl border border-border-subtle bg-surface-card p-5 shadow-sm transition-all hover:shadow-md"
+        class="stat-card group flex grow basis-[min(18rem,100%)] min-w-0 items-center justify-between rounded-2xl border border-border-subtle bg-surface-card p-5 shadow-sm transition-all hover:shadow-md"
         [class]="statusTone[card.status]"
       >
         <ng-container *ngTemplateOutlet="body; context: { $implicit: card }" />
       </a>
     } @else {
       <div
-        class="stat-card group flex grow basis-72 items-center justify-between rounded-2xl border border-border-subtle bg-surface-card p-5 shadow-sm transition-all hover:shadow-md"
+        class="stat-card group flex grow basis-[min(18rem,100%)] min-w-0 items-center justify-between rounded-2xl border border-border-subtle bg-surface-card p-5 shadow-sm transition-all hover:shadow-md"
         [class]="statusTone[card.status]"
       >
         <ng-container *ngTemplateOutlet="body; context: { $implicit: card }" />

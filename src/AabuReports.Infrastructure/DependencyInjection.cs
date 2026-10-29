@@ -41,14 +41,20 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IImageService, ImageService>();
+        services.AddScoped<ICloudinaryService, CloudinaryService>();
+        services.AddScoped<INotificationService, NotificationService>();
         
         // add repositories
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IImageRepository, ImageRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
         
         // add background services
         services.AddHostedRemoveExpiredRefreshTokens();
+        services.AddHostedRemoveOrphanedImages();
         
         
         return services;

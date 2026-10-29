@@ -14,7 +14,6 @@ import {
 
 @Component({
   selector: 'app-otp',
-  standalone: true,
   templateUrl: './otp.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -51,6 +50,7 @@ export class OtpComponent implements OnInit {
 
   private timerId: ReturnType<typeof setInterval> | null = null;
 
+  // not the constructor: the `seconds` input is only set by ngOnInit
   ngOnInit(): void {
     this.startTimer();
     this.destroyRef.onDestroy(() => this.stopTimer());
@@ -111,6 +111,8 @@ export class OtpComponent implements OnInit {
   }
 
   onResend(): void {
+    if (this.secondsLeft() > 0) return;
+
     this.startTimer();
     this.resend.emit();
   }

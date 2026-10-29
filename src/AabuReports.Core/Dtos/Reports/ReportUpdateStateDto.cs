@@ -9,6 +9,6 @@ public class ReportUpdateStateDto
     public required Guid Id { get; set; }
 
     [Required]
-    [EnumDataType(typeof(ReportState))]
-    public required ReportState State { get; set; }
+    [EnumDataType(typeof(ReportStateEnum))]
+    public required ReportStateEnum State { get; set; }
 }

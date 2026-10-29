@@ -15,7 +15,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         // refresh token relations
         builder.Entity<RefreshToken>(rt =>
         {
-            rt
+            rt 
                 .HasOne(rt => rt.User)
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(rt => rt.UserId)
@@ -64,6 +64,39 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // image: a report has many images, an image belongs to one report,
+        // deleting a report sets ReportId to null (the images are removed later by RemoveOrphanedImages)
+        builder.Entity<Image>(image =>
+        {
+            image.HasOne(i => i.Report)
+                .WithMany(r => r.Images)
+                .HasForeignKey(i => i.ReportId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            image.HasIndex(i => i.PublicId)
+                .IsUnique();
+        });
+
+        // notification: deleting the user deletes their notifications,
+        // deleting a report keeps the notification (ReportId becomes null, the Subject is a copy so it still makes sense)
+        builder.Entity<Notification>(notification =>
+        {
+            notification.HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            notification.HasOne(n => n.Report)
+                .WithMany()
+                .HasForeignKey(n => n.ReportId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // the list, the unread filter and the unread count are all "by user, newest first"
+            notification.HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+        });
+
         // store every DateTime as UTC and read it back as UTC
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
@@ -84,4 +117,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     public virtual DbSet<Location> Locations { get; set; }
     public virtual DbSet<Report> Reports { get; set; }
+    public virtual DbSet<Image> Images { get; set; }
+    public virtual DbSet<Notification> Notifications { get; set; }
 }

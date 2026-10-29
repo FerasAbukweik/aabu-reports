@@ -1,4 +1,6 @@
-export abstract class URLs{
-    static readonly base = 'http://localhost:8080';
-    static readonly baseApi = 'http://localhost:8080/api';
+const BASE = 'http://localhost:8080';
+
+export abstract class URLs {
+  static readonly baseApi = `${BASE}/api`;
+  static readonly notificationHub = `${BASE}/hubs/notification`;
 }

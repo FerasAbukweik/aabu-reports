@@ -12,11 +12,13 @@ public class Report
     [Required]
     public required DateTime ReportDate { get; set; } = DateTime.UtcNow;
     
+    public DateTime? FixDate { get; set; }
+    
     [Required]
     public required ReportCategory Category { get; set; }
     
     [Required]
-    public required ReportState State { get; set; }
+    public required ReportStateEnum State { get; set; }
     
     [Required]
     public required ReportSeverity Severity { get; set; }
@@ -37,6 +39,9 @@ public class Report
     public required Guid LocationId { get; set; }
     public Location? Location { get; set; }
 
+    /// <summary> the images attached to the report </summary>
+    public List<Image> Images { get; set; } = new();
+
     /// <summary> the user who sent the report </summary>
     [Required]
     public required Guid UserId { get; set; }
@@ -45,19 +50,28 @@ public class Report
 
     // methods
 
-    /// <summary> changes the state, and clears the rate if the report is no longer fixed </summary>
-    public void ChangeState(ReportState newState)
+    /// <summary> changes the state, sets FixDate when the report becomes fixed, and clears the rate and FixDate if it is no longer fixed </summary>
+    public void ChangeState(ReportStateEnum newStateEnum)
     {
-        State = newState;
+        if (newStateEnum == ReportStateEnum.Fixed)
+        {
+            // keep the old FixDate if it was already fixed
+            if (State != ReportStateEnum.Fixed) FixDate = DateTime.UtcNow;
+        }
+        else
+        {
+            Rate = null;
+            FixDate = null;
+        }
 
-        if (newState != ReportState.Fixed) Rate = null;
+        State = newStateEnum;
     }
 
     /// <summary> sets the rate </summary>
     /// <returns> false (and nothing changes) if the report is not fixed or the rate is out of range </returns>
     public bool TryRate(int rate)
     {
-        if (State != ReportState.Fixed) return false;
+        if (State != ReportStateEnum.Fixed) return false;
         if (rate < 1 || rate > 5) return false;
 
         Rate = rate;
@@ -73,11 +87,26 @@ public class Report
             ReportDate = this.ReportDate,
             Category = this.Category,
             State = this.State,
-            Rate = this.Rate,
             Severity = this.Severity,
             Description = this.Description,
-            LocationId = this.LocationId,
-            UserId = this.UserId,
+            Coordinates = this.Location!.Coordinates,
+            ImageUrls = this.Images.Select(i => i.Url).ToList(),
+            LocationTitle = this.Location!.Title,
+            Rate = this.Rate,
+        };
+    }
+
+    public ReportMapDto ToMapDto()
+    {
+        return new ReportMapDto
+        {
+            Id = this.Id,
+            ReportDate = this.ReportDate,
+            Category = this.Category,
+            State = this.State,
+            Severity = this.Severity,
+            Description = this.Description,
+            LocationId = this.LocationId
         };
     }
 

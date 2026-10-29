@@ -1,0 +1,261 @@
+<section
+  aria-label="لوحة البلاغ والموقع"
+  class="flex min-w-0 flex-1 flex-col justify-between overflow-hidden rounded-2xl border border-border-subtle bg-surface-card shadow-sm"
+>
+  <div
+    class="flex items-center justify-between border-b border-border-subtle bg-surface-card-subtle px-5 py-4"
+  >
+    <div class="flex items-center gap-2.5">
+      <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true"
+          >assignment_turned_in</span
+        >
+      </span>
+      <div>
+        <h2 class="text-sm font-extrabold text-primary">لوحة البلاغ والموقع</h2>
+        <p class="text-[11px] font-semibold text-text-secondary">تأكيد الإحداثيات وفتح التذكرة</p>
+      </div>
+    </div>
+    <span
+      class="rounded-full border px-2.5 py-1 text-[10px] font-bold"
+      [class]="
+        location()
+          ? isCustomPin()
+            ? 'tone-info tone-chip'
+            : 'tone-success tone-chip'
+          : 'border-transparent bg-primary-container text-on-primary-container'
+      "
+    >
+      {{ location() ? (isCustomPin() ? 'دبوس مخصص' : 'تم تحديد الموقع') : 'جاهز للاختيار' }}
+    </span>
+  </div>
+
+  <div class="flex flex-1 flex-col justify-between p-5">
+    @if (location(); as loc) {
+      <div class="flex h-full flex-col justify-between gap-4">
+        <div class="space-y-4">
+          <!-- Header card -->
+          <div class="rounded-xl border border-primary/20 bg-primary-container/50 p-4">
+            <div class="flex items-center gap-3">
+              <div
+                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-accent shadow-md"
+              >
+                <span class="material-symbols-outlined text-[26px]" aria-hidden="true">{{
+                  isCustomPin() ? 'add_location' : 'location_city'
+                }}</span>
+              </div>
+              <div>
+                <span
+                  class="rounded border border-primary/20 bg-surface-card px-2 py-0.5 text-[11px] font-bold text-primary"
+                >
+                  {{ isCustomPin() ? 'موقع مخصص' : 'مبنى / مرفق' }}
+                </span>
+                <h3 class="mt-1 text-base font-black text-primary">
+                  {{ loc.title }}
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          <!-- Facts -->
+          <dl class="space-y-2 rounded-xl border border-border-subtle bg-surface-bg p-3.5 text-xs">
+            <div class="flex items-center justify-between gap-3 border-b border-border-subtle py-1">
+              <dt class="font-bold text-text-secondary">الإحداثيات:</dt>
+              <dd class="font-mono font-extrabold text-text-primary" dir="ltr">
+                {{ loc.coordinates.lat.toFixed(5) }}, {{ loc.coordinates.lng.toFixed(5) }}
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-b border-border-subtle py-1">
+              <dt class="font-bold text-text-secondary">خرائط جوجل:</dt>
+              <dd>
+                @if (mapsUrl(); as url) {
+                  <a
+                    class="link-accent inline-flex items-center gap-1"
+                    [href]="url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span>فتح الموقع</span>
+                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true"
+                      >open_in_new</span
+                    >
+                  </a>
+                }
+              </dd>
+            </div>
+            @if (avgResponseHours(); as hours) {
+              <div class="flex items-center justify-between gap-3 py-1">
+                <dt class="font-bold text-text-secondary">زمن الاستجابة التقديري:</dt>
+                <dd class="flex items-center gap-1 font-extrabold text-status-success-text">
+                  <span class="material-symbols-outlined text-[16px]" aria-hidden="true">bolt</span>
+                  أقل من {{ hours }} ساعة
+                </dd>
+              </div>
+            }
+          </dl>
+
+          <!-- Reports of this location, every one gets the tone of its state -->
+          <div class="space-y-2">
+            <h4 class="flex items-center justify-between text-xs font-extrabold text-primary">
+              <span>بلاغات هذا الموقع</span>
+              <span class="font-mono text-[11px] text-text-secondary">{{ loc.reportsCount }}</span>
+            </h4>
+
+            @if (reports().length === 0) {
+              @if (isLoading() || (isMoreAvailable() && !hasFailed())) {
+                <p class="text-[11px] font-semibold text-text-secondary" role="status">جارٍ تحميل البلاغات...</p>
+
+                <!-- the first page: the list is empty, so the sentinel is on the screen at once and asks for it -->
+                @if (!isLoading()) {
+                  <div class="h-px" aria-hidden="true" appIsVisible (visible)="loadMoreReportsRequested.emit()"></div>
+                }
+              } @else if (hasFailed()) {
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border-subtle bg-surface-bg p-3 text-center text-[11px] font-bold text-primary transition hover:underline"
+                  (click)="loadMoreReportsRequested.emit()"
+                >
+                  تعذر تحميل البلاغات، اضغط لإعادة المحاولة
+                </button>
+              } @else {
+                <p class="rounded-xl border border-border-subtle bg-surface-bg p-3 text-center text-[11px] font-semibold text-text-secondary">
+                  لا توجد بلاغات على هذا الموقع
+                </p>
+              }
+            } @else {
+              <div class="max-h-56 overflow-y-auto pe-1">
+                <ul class="space-y-2">
+                  @for (report of reports(); track report.id) {
+                    <li class="tone-chip rounded-xl border p-3 text-xs" [class]="stateTone[report.state]">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="font-black">{{ reportCategoryLabel[report.category] }}</span>
+                        <span class="tone-dot h-2 w-2 shrink-0 rounded-full" aria-hidden="true"></span>
+                      </div>
+                      <p class="mt-1 line-clamp-2 font-medium">{{ report.description }}</p>
+                      <div class="mt-2 flex items-center justify-between gap-2 text-[11px] font-bold">
+                        <span>{{ stateLabel[report.state] }}</span>
+                        <span class="font-mono opacity-80" dir="ltr">{{ report.reportDate | date: 'yyyy/MM/dd' }}</span>
+                      </div>
+                    </li>
+                  }
+                </ul>
+
+                <!-- one sentinel after the list: it is gone while a page loads and once there is no more,
+                     and it comes back after each page, so a short list keeps loading until it fills the box -->
+                @if (isMoreAvailable() && !isLoading() && !hasFailed()) {
+                  <div class="h-px" aria-hidden="true" appIsVisible (visible)="loadMoreReportsRequested.emit()"></div>
+                }
+
+                @if (hasFailed()) {
+                  <button
+                    type="button"
+                    class="w-full py-2 text-center text-[11px] font-bold text-primary transition hover:underline"
+                    (click)="loadMoreReportsRequested.emit()"
+                  >
+                    تعذر تحميل المزيد، اضغط لإعادة المحاولة
+                  </button>
+                }
+
+                @if (isLoading()) {
+                  <p class="py-2 text-center text-[11px] font-semibold text-text-secondary" role="status">
+                    جارٍ تحميل المزيد...
+                  </p>
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="space-y-2 border-t border-border-subtle pt-4">
+          <button
+            type="button"
+            class="btn btn-primary group w-full py-3.5 text-sm hover:-translate-y-0.5 hover:shadow-lg"
+            (click)="reportRequested.emit()"
+          >
+            <span
+              class="material-symbols-outlined text-[20px] text-accent transition-transform group-hover:rotate-12"
+              aria-hidden="true"
+              >add_alert</span
+            >
+            <span>تقديم بلاغ لهذا الموقع</span>
+            <span class="material-symbols-outlined text-[18px] rtl:rotate-180" aria-hidden="true"
+              >arrow_forward</span
+            >
+          </button>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-subtle flex-1 px-3 py-2 text-xs"
+              (click)="selectionReset.emit()"
+            >
+              <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
+                >restart_alt</span
+              >
+              <span>إلغاء التحديد</span>
+            </button>
+            <button
+              type="button"
+              class="btn btn-subtle px-3 py-2 text-xs"
+              title="تكبير الموقع على الخريطة"
+              (click)="focusRequested.emit()"
+            >
+              <span class="material-symbols-outlined text-[16px]" aria-hidden="true"
+                >filter_center_focus</span
+              >
+              <span>تركيز</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="flex h-full flex-col items-center justify-center py-6 text-center">
+        <div
+          class="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-primary/20 bg-primary-container text-accent shadow-inner"
+        >
+          <span class="material-symbols-outlined text-[40px]" aria-hidden="true">touch_app</span>
+        </div>
+        <h3 class="mb-1.5 text-base font-extrabold text-primary">اختر موقع المشكلة من الخريطة</h3>
+        <p class="mb-6 max-w-xs text-xs font-medium leading-relaxed text-text-secondary">
+          انقر على أي مبنى على المخطط التفاعلي أو على أي نقطة فارغة لتحديد المكان بدقة، أو اختر من
+          الأماكن الشائعة أعلاه.
+        </p>
+        <ol
+          class="w-full space-y-2 rounded-xl border border-border-subtle bg-surface-bg p-3.5 text-start"
+        >
+          <li class="mb-2 text-xs font-bold text-text-primary">خطوات تقديم البلاغ:</li>
+          <li class="flex items-center gap-2 text-[12px] font-medium text-text-secondary">
+            <span
+              class="flex h-5 w-5 items-center justify-center rounded-full bg-primary font-mono text-[10px] font-bold text-on-primary"
+              >1</span
+            >
+            <span>تحديد موقع العطل على خريطة الحرم</span>
+          </li>
+          <li class="flex items-center gap-2 text-[12px] font-medium text-text-secondary">
+            <span
+              class="flex h-5 w-5 items-center justify-center rounded-full bg-border-muted font-mono text-[10px] font-bold text-text-secondary"
+              >2</span
+            >
+            <span>اختيار نوع العطل وتحديد درجة الخطورة</span>
+          </li>
+          <li class="flex items-center gap-2 text-[12px] font-medium text-text-secondary">
+            <span
+              class="flex h-5 w-5 items-center justify-center rounded-full bg-border-muted font-mono text-[10px] font-bold text-text-secondary"
+              >3</span
+            >
+            <span>إرفاق صورة وتأكيد الإرسال لدائرة الصيانة</span>
+          </li>
+        </ol>
+      </div>
+    }
+  </div>
+
+  <div
+    class="flex items-center gap-1 border-t border-border-subtle bg-surface-card-subtle px-5 py-2.5 text-[11px] font-semibold text-text-secondary"
+  >
+    <span class="material-symbols-outlined text-[15px] text-status-success" aria-hidden="true"
+      >verified_user</span
+    >
+    <span>دائرة الخدمات والصيانة المركزية</span>
+  </div>
+</section>

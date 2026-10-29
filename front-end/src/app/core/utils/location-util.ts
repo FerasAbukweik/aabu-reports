@@ -1,4 +1,4 @@
-import { ReportState } from '../enums/buildings-status';
+import { ReportState } from '../enums/report-state.enum';
 import { Status } from '../enums/status.enum';
 import { statusTone } from './status-utils';
 import { getEnumValues } from './enum-utils';
@@ -20,6 +20,4 @@ export const locationStatusLabel: Record<ReportState, string> = {
 };
 
 /** All the location statuses in enum order (the order the map legend shows them) */
-export function getLocationStatuses(): ReportState[] {
-  return getEnumValues(ReportState);
-}
+export const LOCATION_STATUSES: readonly ReportState[] = getEnumValues(ReportState);

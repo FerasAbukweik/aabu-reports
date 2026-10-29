@@ -1,4 +1,4 @@
-import { MapCoordinates } from "../../../core/interfaces/map-Coordinates"; 
+import { MapCoordinates } from "../../../core/interfaces/map-coordinates"; 
 
 /** where the map opens, and the zoom it opens at (16 shows the whole campus on a wide screen) */
 export const CAMPUS_CENTER: MapCoordinates = { lat: 32.33306, lng: 36.24106 };

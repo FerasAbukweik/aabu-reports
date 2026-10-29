@@ -14,7 +14,7 @@ export const routes: Routes = [
     path: '',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./shared/layout/main-layout/main-layout.component').then(
+      import('./layout/main-layout/main-layout.component').then(
         (m) => m.MainLayoutComponent,
       ),
     children: [
@@ -24,6 +24,15 @@ export const routes: Routes = [
         title: 'خريطة الحرم وإبلاغ المشاكل',
         loadComponent: () =>
           import('./features/campus-map/campus-map.component').then((m) => m.CampusMapComponent),
+      },
+      {
+        path: 'history',
+        pathMatch: 'full',
+        title: 'سجل البلاغات',
+        loadComponent: () =>
+          import('./features/reports-history/reports-history.component').then(
+            (m) => m.ReportsHistoryComponent,
+          ),
       },
     ],
   },

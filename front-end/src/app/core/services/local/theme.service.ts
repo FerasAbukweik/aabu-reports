@@ -1,6 +1,5 @@
 import { Injectable, effect, signal } from '@angular/core';
-
-export type Theme = 'light' | 'dark';
+import { Theme } from '../../interfaces/theme';
 
 const STORAGE_KEY = 'theme';
 

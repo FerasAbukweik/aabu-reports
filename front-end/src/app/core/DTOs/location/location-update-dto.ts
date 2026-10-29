@@ -1,6 +1,6 @@
-import { ReportState } from '../../enums/buildings-status';
-import { LocationTypeEnum } from '../../enums/location-type';
-import { MapCoordinates } from '../../interfaces/map-Coordinates';
+import { ReportState } from '../../enums/report-state.enum';
+import { LocationTypeEnum } from '../../enums/location-type.enum';
+import { MapCoordinates } from '../../interfaces/map-coordinates';
 
 /** Only `id` is required: send just the fields that changed (the api leaves the rest as they are) */
 export interface LocationUpdateDTO {

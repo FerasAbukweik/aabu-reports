@@ -1,6 +1,7 @@
 using AabuReports.Core;
 using AabuReports.Infrastructure;
 using AabuReports.Webapi.ExtensionMethods;
+using AabuReports.Webapi.Hubs;
 using AabuReports.Webapi.Middlewares;
 using AabuReports.Webapi;
 using Scalar.AspNetCore;
@@ -40,6 +41,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notification");
 
 await app.Services.SeedAdminAsync(app.Configuration);
 

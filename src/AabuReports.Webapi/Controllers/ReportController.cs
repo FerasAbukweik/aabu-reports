@@ -3,6 +3,7 @@ using AabuReports.Core.Dtos.LazyLoading;
 using AabuReports.Core.Dtos.Reports;
 using AabuReports.Core.Enums;
 using AabuReports.Webapi.ExtensionMethods;
+using AabuReports.Webapi.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,29 +12,47 @@ namespace AabuReports.Webapi.Controllers;
 [Authorize]
 public class ReportController(IReportService reportService) : ApiControllerBase
 {
-    [HttpGet]
-    [Authorize(Roles = nameof(AppRole.Admin))]
-    public async Task<ActionResult<IReadOnlyList<ReportDto>>> GetAll([FromQuery] LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken)
+    /// <summary>
+    /// one page of the reports table: the current user's reports, or everyone's when an admin sends allReports=true
+    /// (a user who is not an admin always gets only their own, the flag is ignored)
+    /// </summary>
+    [HttpGet("table")]
+    public async Task<ActionResult<IReadOnlyList<ReportDto>>> LazyGetTableReports(
+        [FromQuery] ReportFilterDto filterDto,
+        [FromQuery] LazyLoadingDto lazyLoadingDto,
+        [FromQuery] bool allReports = false,
+        CancellationToken cancellationToken = default)
     {
-        var result = await reportService.LazyGetAllAsync(lazyLoadingDto, cancellationToken);
+        var result = await reportService.LazyGetAllAsync(TableScopeUserId(allReports), filterDto, lazyLoadingDto, cancellationToken);
 
         return result.ToActionResult();
     }
 
-    [HttpGet("mine")]
-    public async Task<ActionResult<IReadOnlyList<ReportDto>>> GetMine(CancellationToken cancellationToken)
+    /// <summary> the numbers of the table's stats cards, for the same reports the table shows (see <see cref="LazyGetTableReports"/>) </summary>
+    [HttpGet("table/stats")]
+    public async Task<ActionResult<ReportHistoryStatsDto>> GetTableStats([FromQuery] bool allReports = false, CancellationToken cancellationToken = default)
     {
-        var result = await reportService.GetByUserIdAsync(User.GetUserId(), cancellationToken);
+        var result = await reportService.GetHistoryStatsAsync(TableScopeUserId(allReports), cancellationToken);
 
         return result.ToActionResult();
     }
 
+    /// <summary> one page of the reports of a location, in the short shape the map needs </summary>
     [HttpGet("location")]
-    public async Task<ActionResult<IReadOnlyList<ReportDto>>> LazyGetLocationReportsAsync(
+    public async Task<ActionResult<IReadOnlyList<ReportMapDto>>> LazyGetLocationReports(
         [FromQuery] Guid locationId,
-        [FromQuery] LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken)
+        [FromQuery] LazyLoadingDto lazyLoadingDto,
+        CancellationToken cancellationToken)
     {
-        var result = await reportService.LazyGetLocationReportsAsync(locationId, lazyLoadingDto, cancellationToken);
+        var result = await reportService.LazyGetMapReportsAsync(locationId, lazyLoadingDto, cancellationToken);
+
+        return result.ToActionResult();
+    }
+
+    [HttpGet("stats")]
+    public async Task<ActionResult<MaintenanceStatsDto>> GetMaintenanceStats(CancellationToken cancellationToken)
+    {
+        var result = await reportService.GetMaintenanceStatsAsync(cancellationToken);
 
         return result.ToActionResult();
     }
@@ -47,7 +66,8 @@ public class ReportController(IReportService reportService) : ApiControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ReportCreateResponseDto>> CreateForLocation([FromBody] ReportCreateForLocationDto reportCreateForLocationDto, CancellationToken cancellationToken)
+    [Transactional]
+    public async Task<ActionResult<ReportCreateResponseDto>> CreateForLocation([FromForm] ReportCreateForLocationDto reportCreateForLocationDto, CancellationToken cancellationToken)
     {
         var result = await reportService.CreateForLocationIdAsync(User.GetUserId(), reportCreateForLocationDto, cancellationToken);
 
@@ -55,7 +75,8 @@ public class ReportController(IReportService reportService) : ApiControllerBase
     }
 
     [HttpPost("coordinates")]
-    public async Task<ActionResult<ReportCreateResponseDto>> CreateForCoordinates([FromBody] ReportCreateForCoordinatesDto reportCreateForCoordinatesDto, CancellationToken cancellationToken)
+    [Transactional]
+    public async Task<ActionResult<ReportCreateResponseDto>> CreateForCoordinates([FromForm] ReportCreateForCoordinatesDto reportCreateForCoordinatesDto, CancellationToken cancellationToken)
     {
         var result = await reportService.CreateForCoordinates(User.GetUserId(), reportCreateForCoordinatesDto, cancellationToken);
 
@@ -64,6 +85,7 @@ public class ReportController(IReportService reportService) : ApiControllerBase
 
     [HttpPut("state")]
     [Authorize(Roles = nameof(AppRole.Admin))]
+    [Transactional]
     public async Task<ActionResult<ReportDto>> UpdateState([FromBody] ReportUpdateStateDto reportUpdateStateDto, CancellationToken cancellationToken)
     {
         var result = await reportService.UpdateStateAsync(reportUpdateStateDto, cancellationToken);
@@ -72,6 +94,7 @@ public class ReportController(IReportService reportService) : ApiControllerBase
     }
 
     [HttpPut("rate")]
+    [Transactional]
     public async Task<ActionResult<ReportDto>> Rate([FromBody] ReportRateDto reportRateDto, CancellationToken cancellationToken)
     {
         var result = await reportService.RateAsync(User.GetUserId(), reportRateDto, cancellationToken);
@@ -81,10 +104,16 @@ public class ReportController(IReportService reportService) : ApiControllerBase
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = nameof(AppRole.Admin))]
+    [Transactional]
     public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var result = await reportService.DeleteAsync(id, cancellationToken);
 
         return result.ToActionResult();
     }
+
+    // private
+
+    /// <summary> null (everyone's reports) only for an admin who asked for them, otherwise the current user </summary>
+    private Guid? TableScopeUserId(bool allReports) => allReports && User.IsAdmin() ? null : User.GetUserId();
 }

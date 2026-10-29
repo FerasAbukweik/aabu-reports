@@ -43,6 +43,13 @@
 
   <div class="flex items-center justify-between text-[11px] text-text-secondary">
     <span>لم يصلك الرمز بعد؟</span>
-    <button type="button" class="link-accent" (click)="onResend()">إعادة إرسال الرمز</button>
+    <button
+      type="button"
+      class="link-accent disabled:cursor-not-allowed disabled:opacity-50"
+      [disabled]="secondsLeft() > 0"
+      (click)="onResend()"
+    >
+      إعادة إرسال الرمز
+    </button>
   </div>
 </div>

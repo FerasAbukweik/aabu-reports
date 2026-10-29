@@ -15,6 +15,10 @@ public static class WebApiDependencyInjectionExtension
     {
         services.AddControllers();
         services.AddOpenApi();
+
+        // signalR (real time notifications), the service in Infrastructure pushes through INotificationPusher
+        services.AddSignalR();
+        services.AddScoped<INotificationPusher, SignalRNotificationPusher>();
         
         // add configs
         services.Configure<JwtOptions>(configuration.GetSection("JWT"));
