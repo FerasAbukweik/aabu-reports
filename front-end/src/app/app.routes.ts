@@ -70,7 +70,7 @@ export const routes: Routes = [
           },
           {
             path: '**',
-            redirectTo: 'buildings',
+            redirectTo: 'history',
           },
         ],
       },

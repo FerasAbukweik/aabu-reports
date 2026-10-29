@@ -21,11 +21,14 @@
       - CloudinarySettings__CloudName=${CloudName}
       - CloudinarySettings__ApiKey=${ApiKey}
       - CloudinarySettings__ApiSecret=${ApiSecret}
+      - ConnectionStrings__Redis=redis:6379
     depends_on:
       mssql-service:
         condition: service_healthy
       seq:
         condition: service_started
+      redis:
+        condition: service_healthy
         
         
   mssql-service:
@@ -54,12 +57,24 @@
       - ACCEPT_EULA=Y
       - SEQ_PASSWORD=${SEQ_PASSWORD}
     volumes:
-      - seq-data:/data
+      - seq_data:/data
     ports:
       - 5341:80
 
-
+  redis:
+    image: redis:7-alpine
+    container_name: AabuReports.redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 volumes:
   mssql_data:
-  seq-data:
+  seq_data:
+  redis_data:
