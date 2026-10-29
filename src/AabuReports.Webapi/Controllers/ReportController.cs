@@ -17,18 +17,18 @@ public class ReportController(IReportService reportService) : ApiControllerBase
     /// (a user who is not an admin always gets only their own, the flag is ignored)
     /// </summary>
     [HttpGet("table")]
-    public async Task<ActionResult<IReadOnlyList<ReportDto>>> LazyGetTableReports(
+    public async Task<ActionResult<IReadOnlyList<ReportDto>>> LazyGetFilteredTableReports(
         [FromQuery] ReportFilterDto filterDto,
         [FromQuery] LazyLoadingDto lazyLoadingDto,
         [FromQuery] bool allReports = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await reportService.LazyGetAllAsync(TableScopeUserId(allReports), filterDto, lazyLoadingDto, cancellationToken);
+        var result = await reportService.LazyGetFilteredAsync(TableScopeUserId(allReports), filterDto, lazyLoadingDto, cancellationToken);
 
         return result.ToActionResult();
     }
 
-    /// <summary> the numbers of the table's stats cards, for the same reports the table shows (see <see cref="LazyGetTableReports"/>) </summary>
+    /// <summary> the numbers of the table's stats cards, for the same reports the table shows (see <see cref="LazyGetFilteredTableReports"/>) </summary>
     [HttpGet("table/stats")]
     public async Task<ActionResult<ReportHistoryStatsDto>> GetTableStats([FromQuery] bool allReports = false, CancellationToken cancellationToken = default)
     {

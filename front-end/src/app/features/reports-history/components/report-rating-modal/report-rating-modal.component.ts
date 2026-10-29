@@ -5,17 +5,8 @@ import { ReportDTO } from '../../../../core/DTOs/report/report-dto';
 import { ReportsTableService } from '../../../../core/services/api-services/reports-table.service';
 import { ToastService } from '../../../../core/services/local/toast.service';
 import { DialogComponent } from '../../../../shared/components/dialog/dialog.component';
-import { ReportRow } from '../../reports-history.model';
-
-const STARS = [1, 2, 3, 4, 5] as const;
-
-const RATING_LABEL: Record<number, string> = {
-  1: 'سيئ',
-  2: 'مقبول',
-  3: 'جيد',
-  4: 'جيد جدًا',
-  5: 'ممتاز',
-};
+import { TableReportRow } from '../../../../core/interfaces/table-row';
+import { RATING_LABEL, STARS } from './report-rating-modal.data';
 
 /** Rates a fixed report (PUT /report/rate). ReportsTableService updates the list, so the table follows by itself. */
 @Component({
@@ -30,7 +21,7 @@ export class ReportRatingModalComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   /** the report to rate, null keeps the dialog closed */
-  readonly row = input<ReportRow | null>(null);
+  readonly row = input<TableReportRow | null>(null);
 
   readonly closed = output<void>();
   /** the report was rated: the api sent the whole report back (with its rate) */

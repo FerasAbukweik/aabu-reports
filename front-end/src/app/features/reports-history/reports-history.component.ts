@@ -7,35 +7,27 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ReportFilterDTO } from '../../core/DTOs/report/report-filter-dto';
 import { ReportCategory } from '../../core/enums/report-category.enum';
-import { ReportSeverity } from '../../core/enums/report-severity.enum';
 import { ReportState } from '../../core/enums/report-state.enum';
 import { Status } from '../../core/enums/status.enum';
+import { TableReportRow } from '../../core/interfaces/table-row';
+import { toReportTableRow } from '../../core/utils/table-utils';
 import { ReportsTableService } from '../../core/services/api-services/reports-table.service';
-import { locationStatusLabel, locationStatusTone } from '../../core/utils/location-util';
-import {
-  REPORT_CATEGORIES,
-  reportCategoryIcon,
-  reportCategoryLabel,
-} from '../../core/utils/report-category-utils';
-import { reportSeverityLabel, reportSeverityTone } from '../../core/utils/report-severity-utils';
-import { googleMapsUrl } from '../../core/utils/map.utils';
-import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
-import { TableColumn } from '../../shared/components/data-table/data-table.model';
-import { TableCellDirective } from '../../shared/components/data-table/table-cell.directive';
-import { SearchFilterBarComponent } from '../../shared/components/search-filter-bar/search-filter-bar.component';
+import { locationStatusLabel } from '../../core/utils/location-util';
+import { REPORT_CATEGORIES, reportCategoryLabel } from '../../core/utils/report-category-utils';
+import { ReportsTableComponent } from './components/reports-table/reports-table.component';
+import { SearchFilterBarComponent } from './components/search-filter-bar/search-filter-bar.component';
 import {
   FilterConfig,
   FilterValues,
-} from '../../shared/components/search-filter-bar/search-filter-bar.model';
-import { StarRatingComponent } from '../../shared/components/star-rating/star-rating.component';
+} from './components/search-filter-bar/search-filter-bar.model';
 import { StatCardsComponent } from '../../shared/components/stat-card/stat-cards.component';
 import { StatCard } from '../../shared/components/stat-card/stat-card.model';
+import { ReportDeleteModalComponent } from './components/report-delete-modal/report-delete-modal.component';
 import { ReportRatingModalComponent } from './components/report-rating-modal/report-rating-modal.component';
-import { ReportRow, toReportRow } from './reports-history.model';
+import { ReportStateModalComponent } from './components/report-state-modal/report-state-modal.component';
 
 /** the states a report can be in (a report is never "normal", that one is only for locations without reports) */
 const REPORT_STATES: readonly ReportState[] = [
@@ -43,16 +35,6 @@ const REPORT_STATES: readonly ReportState[] = [
   ReportState.InProgress,
   ReportState.Fixed,
   ReportState.NeedsFollowUp,
-];
-
-const COLUMNS: readonly TableColumn[] = [
-  { key: 'id', header: 'رقم البلاغ', nowrap: true },
-  { key: 'date', header: 'تاريخ البلاغ', nowrap: true },
-  { key: 'subject', header: 'موضوع ونوع المشكلة', minWidth: '15rem' },
-  { key: 'location', header: 'موقع البلاغ', nowrap: true },
-  { key: 'state', header: 'حالة البلاغ', nowrap: true },
-  { key: 'rating', header: 'التقييم', align: 'center', nowrap: true },
-  { key: 'actions', header: 'الإجراءات', align: 'center', nowrap: true },
 ];
 
 const FILTERS: readonly FilterConfig[] = [
@@ -90,14 +72,13 @@ function toFilter(query: string, { state, category }: FilterValues): ReportFilte
 @Component({
   selector: 'app-reports-history',
   imports: [
-    DatePipe,
     RouterLink,
     StatCardsComponent,
     SearchFilterBarComponent,
-    DataTableComponent,
-    TableCellDirective,
-    StarRatingComponent,
+    ReportsTableComponent,
     ReportRatingModalComponent,
+    ReportStateModalComponent,
+    ReportDeleteModalComponent,
   ],
   templateUrl: './reports-history.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -105,24 +86,11 @@ function toFilter(query: string, { state, category }: FilterValues): ReportFilte
 export class ReportsHistoryComponent {
   private readonly reportsTable = inject(ReportsTableService);
   private readonly destroyRef = inject(DestroyRef);
+  /** the admin route (admin/history) sets `isAdmin` in its data: the table then holds everyone's reports */
+  protected readonly isAdmin = inject(ActivatedRoute).snapshot.data['isAdmin'] === true;
 
-  // protected: table setup
-  protected readonly columns = COLUMNS;
+  // protected: filters setup
   protected readonly filters = FILTERS;
-  protected readonly rowKey = (row: ReportRow) => row.report.id;
-  /** the rows that wait for the user's rating stand out */
-  protected readonly rowClass = (row: ReportRow) => (row.canRate ? 'bg-accent-light/40' : '');
-
-  // protected: template helpers
-  protected readonly ReportState = ReportState;
-  protected readonly ReportSeverity = ReportSeverity;
-  protected readonly stateLabel = locationStatusLabel;
-  protected readonly stateTone = locationStatusTone;
-  protected readonly categoryLabel = reportCategoryLabel;
-  protected readonly categoryIcon = reportCategoryIcon;
-  protected readonly severityLabel = reportSeverityLabel;
-  protected readonly severityTone = reportSeverityTone;
-  protected readonly googleMapsUrl = googleMapsUrl;
 
   // protected: paging of the table
   /** the page that is on the screen, the first page is 1 (the service only caches the pages) */
@@ -158,9 +126,15 @@ export class ReportsHistoryComponent {
   });
 
   // dialog
-  protected readonly ratingRow = signal<ReportRow | null>(null);
+  protected readonly ratingRow = signal<TableReportRow | null>(null);
+  /** admin only: the row whose state is being changed / that is about to be deleted */
+  protected readonly stateRow = signal<TableReportRow | null>(null);
+  protected readonly deleteRow = signal<TableReportRow | null>(null);
 
   constructor() {
+    // before any load: the service is shared, so it is set on the user page too (false)
+    this.reportsTable.setAllReports(this.isAdmin);
+
     // no filters and no cached pages: they may be old (a report was sent from the map, or its state changed, since the last visit)
     this.reportsTable.setFilter({});
 
@@ -189,18 +163,13 @@ export class ReportsHistoryComponent {
     return this.page() + (this.reportsTable.reports().length === this.reportsTable.pageSize ? 1 : 0);
   });
 
-  /** every report of the page on the screen */
-  private readonly allRows = computed<ReportRow[]>(() => {
-    return this.reportsTable.reports().map(toReportRow);
-  });
-
   /** the reports of the page on the screen (the search and the filters are applied by the api) */
-  protected readonly rows = this.allRows;
+  protected readonly rows = computed<TableReportRow[]>(() => this.reportsTable.reports().map(toReportTableRow));
 
-  protected readonly resultsLabel = computed(() => `${this.allRows().length}`);
+  protected readonly resultsLabel = computed(() => `${this.rows().length}`);
 
   protected readonly footerLabel = computed(() => {
-    const onPage = this.allRows().length;
+    const onPage = this.rows().length;
     if (onPage === 0) return '';
 
     const from = (this.page() - 1) * this.reportsTable.pageSize + 1;
@@ -301,14 +270,42 @@ export class ReportsHistoryComponent {
     this.goToPage(this.requestedPage);
   }
 
-  protected openRating(row: ReportRow): void {
+  protected openRating(row: TableReportRow): void {
     this.ratingRow.set(row);
   }
 
-  /** the dialog holds a row, so after a rating the row is looked up again to show the new state */
-  protected readonly liveRatingRow = computed(() => this.findRow(this.ratingRow()));
+  protected openStateChange(row: TableReportRow): void {
+    this.stateRow.set(row);
+  }
 
-  private findRow(row: ReportRow | null): ReportRow | null {
-    return row ? (this.allRows().find((r) => r.report.id === row.report.id) ?? row) : null;
+  protected openDelete(row: TableReportRow): void {
+    this.deleteRow.set(row);
+  }
+
+  /**
+   * A report was deleted: the service dropped the cached pages (the pages after it moved by one), so the page on the screen
+   * is loaded again. If it was the last row of the last page, the previous page is shown instead.
+   */
+  protected onReportDeleted(): void {
+    const page = this.page();
+
+    this.reportsTable
+      .loadPage(page)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (reports) => {
+          if (reports.length === 0 && page > 1) this.goToPage(page - 1);
+        },
+        // ReportsTableService already shows the error toast, the retry button asks for the page again
+        error: () => {},
+      });
+  }
+
+  /** the dialogs hold a row, so after a change the row is looked up again to show the new state */
+  protected readonly liveRatingRow = computed(() => this.findRow(this.ratingRow()));
+  protected readonly liveStateRow = computed(() => this.findRow(this.stateRow()));
+
+  private findRow(row: TableReportRow | null): TableReportRow | null {
+    return row ? (this.rows().find((r) => r.report.id === row.report.id) ?? row) : null;
   }
 }

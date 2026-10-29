@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, switchMap, tap } from 'rxjs';
@@ -16,7 +16,8 @@ import { reportSeverityLabel, reportSeverityTone } from '../../core/utils/report
 import { DialogComponent } from '../../shared/components/dialog/dialog.component';
 import { StarRatingComponent } from '../../shared/components/star-rating/star-rating.component';
 import { ReportRatingModalComponent } from '../reports-history/components/report-rating-modal/report-rating-modal.component';
-import { toReportRow } from '../reports-history/reports-history.model';
+import { toReportTableRow } from '../../core/utils/table-utils';
+import { ReportChatComponent } from './components/report-chat/report-chat.component';
 import { NEXT_STEP } from './report-details.data';
 import { ProgressStep } from './report-details.model';
 
@@ -27,7 +28,7 @@ import { ProgressStep } from './report-details.model';
  */
 @Component({
   selector: 'app-report-details',
-  imports: [DecimalPipe, RouterLink, DialogComponent, StarRatingComponent, ReportRatingModalComponent],
+  imports: [DecimalPipe, RouterLink, DialogComponent, StarRatingComponent, ReportRatingModalComponent, ReportChatComponent],
   templateUrl: './report-details.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -37,6 +38,9 @@ export class ReportDetailsComponent {
 
   /** the `:id` of the route */
   readonly id = input.required<string>();
+
+  /** the conversation card, the header button focuses its box */
+  protected readonly chat = viewChild(ReportChatComponent);
 
   // state
   protected readonly report = signal<ReportDTO | null>(null);
@@ -64,7 +68,7 @@ export class ReportDetailsComponent {
   /** the report with its enums read safely (same shape the history table uses) */
   protected readonly row = computed(() => {
     const report = this.report();
-    return report ? toReportRow(report) : null;
+    return report ? toReportTableRow(report) : null;
   });
 
   /** the row of the rating dialog, null keeps it closed */

@@ -1,0 +1,55 @@
+<div class="flex flex-col gap-5">
+  <app-building-header [count]="buildingsCount()" />
+
+  <!-- Search + quick places (select and focus go through MapViewService) -->
+  <app-buildings-search />
+
+  <div class="grid grid-cols-1 items-stretch gap-5 lg:min-h-[620px] lg:grid-cols-12">
+    <!-- ================= Map ================= -->
+    <app-map-view
+      class="lg:col-span-8"
+      (located)="onLocated($event)"
+      (detailsRequested)="scrollToPanel()"
+    />
+
+    <!-- ================= Building management ================= -->
+    <div #panel class="flex scroll-mt-20 flex-col gap-4 lg:col-span-4">
+      @switch (panelMode()) {
+        @case ('view') {
+          @if (selected(); as loc) {
+            <app-building-details
+              [building]="loc"
+              (editRequested)="openEdit()"
+              (focusRequested)="focusSelection()"
+              (ticketsRequested)="openTickets()"
+              (deleteRequested)="isDeleteOpen.set(true)"
+            />
+          }
+        }
+
+        @case ('empty') {
+          <app-building-empty-state />
+        }
+
+        @default {
+          <app-building-form
+            [mode]="formMode()"
+            [buildingTitle]="selected()?.title ?? ''"
+            [seed]="formSeed()"
+            [saving]="isSaving()"
+            (submitted)="onFormSubmitted($event)"
+            (cancelled)="cancelForm()"
+          />
+        }
+      }
+    </div>
+  </div>
+</div>
+
+<app-building-delete-dialog
+  [open]="isDeleteOpen()"
+  [buildingTitle]="selected()?.title"
+  [deleting]="isDeleting()"
+  (confirmed)="confirmDelete()"
+  (closed)="isDeleteOpen.set(false)"
+/>

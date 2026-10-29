@@ -173,6 +173,35 @@ namespace AabuReports.Infrastructure.Migrations
                     b.ToTable("Locations");
                 });
 
+            modelBuilder.Entity("AabuReports.Core.Entities.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SenderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderId");
+
+                    b.HasIndex("ReportId", "SentAt");
+
+                    b.ToTable("Messages");
+                });
+
             modelBuilder.Entity("AabuReports.Core.Entities.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -425,6 +454,25 @@ namespace AabuReports.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("AabuReports.Core.Entities.Message", b =>
+                {
+                    b.HasOne("AabuReports.Core.Entities.Report", "Report")
+                        .WithMany("Messages")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AabuReports.Core.Entities.Identity.ApplicationUser", "Sender")
+                        .WithMany("Messages")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Report");
+
+                    b.Navigation("Sender");
+                });
+
             modelBuilder.Entity("AabuReports.Core.Entities.Notification", b =>
                 {
                     b.HasOne("AabuReports.Core.Entities.Report", "Report")
@@ -526,6 +574,8 @@ namespace AabuReports.Infrastructure.Migrations
 
             modelBuilder.Entity("AabuReports.Core.Entities.Identity.ApplicationUser", b =>
                 {
+                    b.Navigation("Messages");
+
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("Reports");
@@ -539,6 +589,8 @@ namespace AabuReports.Infrastructure.Migrations
             modelBuilder.Entity("AabuReports.Core.Entities.Report", b =>
                 {
                     b.Navigation("Images");
+
+                    b.Navigation("Messages");
                 });
 #pragma warning restore 612, 618
         }

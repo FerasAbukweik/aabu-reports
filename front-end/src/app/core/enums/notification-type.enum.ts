@@ -10,4 +10,6 @@ export enum NotificationType {
   ReportNeedsFollowUp,
   /** anything that is not about one report */
   System,
+  /** a new message in the chat of the report */
+  NewMessage,
 }

@@ -18,7 +18,7 @@ import { MaintenanceStatsService } from '../../core/services/api-services/mainte
 import { LocationInspectorComponent } from './components/location-inspector/location-inspector.component';
 import { MapViewComponent } from '../../shared/components/map-view/map-view.component';
 import { MapViewService } from '../../shared/components/map-view/map-view.service';
-import { PlaceSearchComponent } from './components/place-search/place-search.component';
+import { BuildingsSearchComponent } from '../../shared/components/buildings-search/buildings-search.component';
 import { ReportModalComponent } from './components/report-modal/report-modal.component';
 import { StatCardsComponent } from '../../shared/components/stat-card/stat-cards.component';
 import { StatCard } from '../../shared/components/stat-card/stat-card.model';
@@ -30,7 +30,7 @@ const NO_REPORTS: readonly ReportMapDTO[] = [];
 @Component({
   selector: 'app-campus-map',
   imports: [
-    PlaceSearchComponent,
+    BuildingsSearchComponent,
     MapViewComponent,
     LocationInspectorComponent,
     StatCardsComponent,

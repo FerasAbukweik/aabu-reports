@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { defer, EMPTY, finalize, Observable, Subscription, tap } from 'rxjs';
 import { NotificationDTO } from '../../DTOs/notification/notification-dto';
 import { toastError } from '../../utils/error-toast';
-import { notificationTypeMeta } from '../../utils/notification-utils';
+import { getNotificationMeta } from '../../utils/notification-utils';
 import { NotificationApiService } from '../api/notification-api.service';
 import { NotificationHubService } from '../hubs/notification-hub.service';
 import { ToastService } from '../local/toast.service';
@@ -152,7 +152,7 @@ export class NotificationService {
     this._notifications.update((list) => [notification, ...list]);
     if (!notification.isRead) this._unreadCount.update((count) => count + 1);
 
-    const meta = notificationTypeMeta[notification.type];
+    const meta = getNotificationMeta(notification.type);
     const message = notification.subject ? `${notification.message} • ${notification.subject}` : notification.message;
     this.toast.show(meta.status, meta.label, message, { icon: meta.icon });
   }

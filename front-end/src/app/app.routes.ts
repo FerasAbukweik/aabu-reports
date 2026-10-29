@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
 import { reportNumberFragmentGuard } from './core/guards/report-id-fragment.guard';
 
 export const routes: Routes = [
@@ -15,9 +16,7 @@ export const routes: Routes = [
     path: '',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./layout/main-layout/main-layout.component').then(
-        (m) => m.MainLayoutComponent,
-      ),
+      import('./layout/main-layout/main-layout.component').then((m) => m.MainLayoutComponent),
     children: [
       {
         path: 'report',
@@ -45,6 +44,35 @@ export const routes: Routes = [
           import('./features/report-details/report-details.component').then(
             (m) => m.ReportDetailsComponent,
           ),
+      },
+      {
+        // every admin page goes in here, the guard runs once for all of them
+        path: 'admin',
+        canActivate: [adminGuard],
+        data: { isAdmin: true },
+        children: [
+          {
+            path: 'buildings',
+            title: 'إدارة مباني الحرم',
+            loadComponent: () =>
+              import('./features/campus-buildings/campus-buildings.component').then(
+                (m) => m.CampusBuildingsComponent,
+              ),
+          },
+          {
+            // same page as /history, `isAdmin` makes it load everyone's reports
+            path: 'history',
+            title: 'سجل البلاغات (المشرف)',
+            loadComponent: () =>
+              import('./features/reports-history/reports-history.component').then(
+                (m) => m.ReportsHistoryComponent,
+              ),
+          },
+          {
+            path: '**',
+            redirectTo: 'buildings',
+          },
+        ],
       },
     ],
   },

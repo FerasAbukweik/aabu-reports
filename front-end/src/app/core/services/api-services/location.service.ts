@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { map, Observable, tap } from 'rxjs';
+import { map, Observable, switchMap, tap } from 'rxjs';
+import { LocationCreateDTO } from '../../DTOs/location/location-create-dto';
 import { LocationDTO } from '../../DTOs/location/location-dto';
 import { LocationUpdateDTO } from '../../DTOs/location/location-update-dto';
 import { LocationTypeEnum } from '../../enums/location-type.enum';
@@ -52,6 +53,20 @@ export class LocationService {
     );
   }
 
+  /**
+   * Creates a location (POST /location, admin only). The api answers with no body,
+   * so the list is reloaded to get the new location with its id.
+   */
+  public create(locationCreateDTO: LocationCreateDTO): Observable<void> {
+    return this.locationApi
+      .create({ ...locationCreateDTO, title: locationCreateDTO.title.trim() })
+      .pipe(
+        toastError(this.toast, 'تعذر إضافة الموقع', (e) => this.errorMessage(e, 'create')),
+        tap({next: (newL) => this._locations.update(curr => [newL, ...curr])}),
+        map(() => undefined)
+      );
+  }
+
   /** Updates a location (PUT /location, admin only) and replaces it in the list. */
   public update(locationUpdateDTO: LocationUpdateDTO): Observable<LocationDTO> {
     return this.locationApi
@@ -74,7 +89,7 @@ export class LocationService {
   }
 
   // private
-  private errorMessage(error: HttpErrorResponse, action: 'load' | 'update' | 'delete'): string {
+  private errorMessage(error: HttpErrorResponse, action: 'load' | 'create' | 'update' | 'delete'): string {
     switch (error.status) {
       case 400:
         return 'تحقق من بيانات الموقع ثم حاول مرة أخرى';

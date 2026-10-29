@@ -1,0 +1,153 @@
+<section aria-labelledby="chat-heading" class="card flex flex-col gap-5">
+  <div class="flex items-center justify-between border-b border-border-subtle pb-3">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">forum</span>
+      <h2 id="chat-heading" class="text-base font-bold text-text-primary">المراسلات والتحديثات الفنية</h2>
+    </div>
+    @if (connectionState() === 'connected') {
+      <span class="flex items-center gap-1.5 text-xs font-bold text-text-secondary">
+        <span class="h-2 w-2 rounded-full bg-accent" aria-hidden="true"></span>
+        <span>متصل</span>
+      </span>
+    }
+  </div>
+
+  <!-- Messages -->
+  @if (!isFirstPageDone()) {
+    <div class="flex flex-col gap-4" role="status" aria-label="جارٍ تحميل المراسلات">
+      <div class="h-20 animate-pulse rounded-2xl bg-surface-card-subtle"></div>
+      <div class="h-16 animate-pulse rounded-2xl bg-surface-card-subtle"></div>
+    </div>
+  } @else if (messages().length === 0 && hasLoadFailed()) {
+    <div class="flex flex-col items-center gap-2 py-6 text-center">
+      <span class="material-symbols-outlined text-[30px] text-status-error" aria-hidden="true">error</span>
+      <p class="text-sm font-bold text-text-primary">تعذر تحميل المراسلات</p>
+      <button type="button" class="btn btn-subtle px-4 py-1.5 text-xs" (click)="loadOlder()">
+        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">refresh</span>
+        <span>إعادة المحاولة</span>
+      </button>
+    </div>
+  } @else if (messages().length === 0) {
+    <div class="flex flex-col items-center gap-2 py-6 text-center">
+      <span
+        class="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary-container text-accent"
+      >
+        <span class="material-symbols-outlined text-[30px]" aria-hidden="true">chat_bubble</span>
+      </span>
+      <p class="text-sm font-extrabold text-primary">لا توجد مراسلات بعد</p>
+      <p class="max-w-sm text-xs font-medium text-text-secondary">
+        اكتب استفسارك أو ملاحظتك وسيطّلع عليها الفريق الفني.
+      </p>
+    </div>
+  } @else {
+    <!-- the list scrolls by itself: the older messages load when the user scrolls up to the top -->
+    <div #scroller class="max-h-[28rem] overflow-y-auto overscroll-contain" (scroll)="onScroll()">
+      <ul class="flex flex-col gap-4" aria-live="polite">
+        <!-- the sentinel asks for the next older page when it is on the screen (it is gone while a page loads and comes back after it) -->
+        @if (hasLoadFailed()) {
+          <li>
+            <button
+              type="button"
+              class="w-full py-2 text-center text-xs font-bold text-primary transition hover:bg-surface-card-subtle"
+              (click)="loadOlder()"
+            >
+              تعذر تحميل الرسائل الأقدم، اضغط لإعادة المحاولة
+            </button>
+          </li>
+        } @else if (isLoading()) {
+          <li class="py-2 text-center text-[11px] font-semibold text-text-muted" role="status">
+            جارٍ تحميل الرسائل الأقدم...
+          </li>
+        } @else if (isMoreAvailable() && isSentinelArmed()) {
+          <li class="h-px" aria-hidden="true" appIsVisible (visible)="loadOlder()"></li>
+        }
+
+        @for (message of messages(); track messageKey(message)) {
+          @let own = isOwn(message);
+          <li class="flex items-start gap-3">
+            <span
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold shadow-sm"
+              [class]="own ? 'bg-accent text-on-accent' : 'bg-primary text-on-primary'"
+              aria-hidden="true"
+              >{{ initials(message.senderName) }}</span
+            >
+
+            <div
+              class="min-w-0 flex-1 rounded-2xl rounded-ss-none border p-4"
+              [class]="own ? 'border-accent/40 bg-accent-light/50' : 'border-border-subtle bg-surface-card-subtle'"
+            >
+              <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-text-primary">{{ message.senderName }}</span>
+                  @if (own) {
+                    <span class="badge badge-accent">أنت</span>
+                  }
+                </div>
+                <time
+                  class="text-xs text-text-secondary"
+                  [attr.datetime]="message.sentAt"
+                  [title]="formatFullDate(message.sentAt)"
+                  >{{ formatRelativeDate(message.sentAt) }}</time
+                >
+              </div>
+              <p class="whitespace-pre-line break-words text-sm font-medium leading-relaxed text-text-primary">
+                {{ message.content }}
+              </p>
+            </div>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  <!-- someone else is typing -->
+  @if (typingNames().length > 0) {
+    <p class="text-xs font-semibold text-text-muted" role="status">{{ typingNames().join('، ') }} يكتب الآن...</p>
+  }
+
+  <!-- the live connection -->
+  @if (connectionState() === 'failed') {
+    <div class="flex items-center justify-between gap-3 rounded-xl border border-status-error/30 px-4 py-2.5">
+      <span class="text-xs font-bold text-text-primary">انقطع الاتصال، لا يمكن إرسال أو استقبال رسائل جديدة</span>
+      <button type="button" class="btn btn-subtle px-3 py-1 text-xs" (click)="reconnect()">
+        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">refresh</span>
+        <span>إعادة الاتصال</span>
+      </button>
+    </div>
+  } @else if (connectionState() !== 'connected') {
+    <p class="text-xs font-semibold text-text-muted" role="status">جارٍ الاتصال...</p>
+  }
+
+  <!-- Composer -->
+  <form #composer class="flex flex-col gap-3 border-t border-border-subtle pt-4" (submit)="send($event)">
+    <label for="reply-textarea" class="flex items-center justify-between text-sm font-bold text-text-primary">
+      <span class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">edit_note</span>
+        <span>الرد أو إضافة استفسار للفريق الفني</span>
+      </span>
+      <span class="text-xs font-normal text-text-muted" dir="ltr">{{ draft().length }} / {{ maxLength }}</span>
+    </label>
+
+    <div class="field-wrapper">
+      <textarea
+        #textarea
+        id="reply-textarea"
+        class="field-input resize-none"
+        rows="3"
+        [attr.maxlength]="maxLength"
+        placeholder="اكتب استفسارك أو ردك للفريق الفني بخصوص هذا البلاغ..."
+        [value]="draft()"
+        (input)="onInput($event)"
+        (keydown.control.enter)="send($event)"
+      ></textarea>
+    </div>
+
+    <div class="flex items-center justify-between gap-3">
+      <span class="text-xs text-text-muted">Ctrl + Enter للإرسال</span>
+      <button type="submit" class="btn btn-primary px-6 py-2.5 text-sm" [disabled]="!canSend()">
+        <span>{{ isSending() ? 'جارٍ الإرسال...' : 'إرسال الرد' }}</span>
+        <span class="material-symbols-outlined text-[18px] rtl:-scale-x-100" aria-hidden="true">send</span>
+      </button>
+    </div>
+  </form>
+</section>

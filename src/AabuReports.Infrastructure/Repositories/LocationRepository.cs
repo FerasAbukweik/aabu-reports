@@ -53,7 +53,7 @@ public class LocationRepository(
         
         var rows = await dbContext.Locations
             .AsNoTracking()
-            .Where(l => (
+            .Where(l => l.Type == LocationType.Building || (
                 l.Reports.Any(r => (int)r.State > (int)ReportStateEnum.Fixed) ||
                 l.Reports.Any(r => r.FixDate >= lastWeekDate)
                 ))

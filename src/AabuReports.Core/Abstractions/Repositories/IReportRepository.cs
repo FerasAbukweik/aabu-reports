@@ -34,6 +34,12 @@ public interface IReportRepository
     Task<Report?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// gets only the id of the user who sent the report (cheaper than loading the report)
+    /// </summary>
+    /// <returns> the owner id, or null if the report doesnt exist </returns>
+    Task<Guid?> GetOwnerIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// filter based on input
     /// </summary>
     /// <param name="predicate"></param>

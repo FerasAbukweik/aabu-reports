@@ -97,6 +97,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             notification.HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
         });
 
+        // message: deleting a report deletes its chat,
+        // users who wrote messages cannot be deleted (same as users with reports)
+        builder.Entity<Message>(message =>
+        {
+            message.HasOne(m => m.Report)
+                .WithMany(r => r.Messages)
+                .HasForeignKey(m => m.ReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            message.HasOne(m => m.Sender)
+                .WithMany(u => u.Messages)
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // the chat is always loaded "by report, newest first"
+            message.HasIndex(m => new { m.ReportId, m.SentAt });
+        });
+
         // store every DateTime as UTC and read it back as UTC
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
@@ -119,4 +137,5 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public virtual DbSet<Report> Reports { get; set; }
     public virtual DbSet<Image> Images { get; set; }
     public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<Message> Messages { get; set; }
 }

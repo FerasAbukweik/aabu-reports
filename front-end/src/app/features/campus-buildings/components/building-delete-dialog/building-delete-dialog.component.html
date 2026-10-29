@@ -1,0 +1,28 @@
+<app-dialog
+  [open]="open()"
+  title="تأكيد حذف المبنى من النظام"
+  subtitle="لا يمكن التراجع عن هذا الإجراء"
+  icon="warning"
+  maxWidth="max-w-md"
+  (closed)="closed.emit()"
+>
+  <p class="text-sm leading-relaxed text-text-secondary">
+    هل أنت متأكد من رغبتك في إزالة
+    <strong class="text-status-error-text">{{ buildingTitle() }}</strong>
+    من الخريطة؟ لا يمكن التراجع عن هذا الإجراء.
+  </p>
+  <div class="mt-5 flex items-center justify-end gap-2.5">
+    <button type="button" class="btn btn-subtle !px-4 !py-2 text-xs" (click)="closed.emit()">
+      تراجع وإلغاء
+    </button>
+    <button
+      type="button"
+      class="btn !bg-status-error !px-5 !py-2 text-xs !text-on-primary hover:opacity-90"
+      [disabled]="deleting()"
+      (click)="confirmed.emit()"
+    >
+      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+      {{ deleting() ? 'جاري الحذف...' : 'نعم، حذف نهائي' }}
+    </button>
+  </div>
+</app-dialog>

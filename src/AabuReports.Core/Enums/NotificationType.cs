@@ -6,4 +6,5 @@ public enum NotificationType {
     ReportFixed = 2,
     ReportNeedsFollowUp = 3,
     System = 4,
+    NewMessage = 5,
 }

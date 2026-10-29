@@ -1,0 +1,108 @@
+<section class="card flex flex-col overflow-hidden !p-0" aria-label="نموذج المبنى">
+  <div class="flex items-center justify-between bg-primary p-4 text-on-primary">
+    <div class="flex items-center gap-2.5">
+      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-on-accent">
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">{{
+          mode() === 'edit' ? 'edit_document' : 'domain_add'
+        }}</span>
+      </span>
+      <div class="flex flex-col">
+        <h3 class="text-base font-bold leading-tight">
+          {{ mode() === 'edit' ? 'تعديل بيانات: ' + buildingTitle() : 'إضافة مبنى جديد' }}
+        </h3>
+        <span class="text-xs text-on-primary/70">تثبيت مباشر على الخريطة الجغرافية</span>
+      </div>
+    </div>
+    <button
+      type="button"
+      class="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-on-primary/10"
+      title="إلغاء وإغلاق النموذج"
+      aria-label="إلغاء وإغلاق النموذج"
+      (click)="cancelled.emit()"
+    >
+      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+    </button>
+  </div>
+
+  <form class="flex flex-col gap-3.5 p-4" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="flex flex-col gap-1">
+      <label class="field-label" for="b-title"
+        >اسم المبنى / الكلية <span class="text-status-error">*</span></label
+      >
+      <div
+        class="field-wrapper"
+        [class.invalid]="form.controls.title.touched && form.controls.title.invalid"
+      >
+        <input
+          id="b-title"
+          class="field-input !py-2 text-xs"
+          type="text"
+          formControlName="title"
+          placeholder="مثال: كلية القانون - مبنى القاضي إياس"
+        />
+      </div>
+      @if (form.controls.title.touched && form.controls.title.invalid) {
+        <span class="field-error">اسم المبنى مطلوب (حرفان على الأقل)</span>
+      }
+    </div>
+
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="flex flex-col gap-1">
+        <label class="field-label" for="b-lat">خط العرض (Lat)</label>
+        <div
+          class="field-wrapper"
+          [class.invalid]="form.controls.lat.touched && form.controls.lat.invalid"
+        >
+          <input
+            id="b-lat"
+            class="field-input !py-2 font-mono text-xs"
+            type="number"
+            step="any"
+            dir="ltr"
+            formControlName="lat"
+          />
+        </div>
+        @if (form.controls.lat.touched && form.controls.lat.invalid) {
+          <span class="field-error">قيمة بين -90 و 90</span>
+        }
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="field-label" for="b-lng">خط الطول (Lng)</label>
+        <div
+          class="field-wrapper"
+          [class.invalid]="form.controls.lng.touched && form.controls.lng.invalid"
+        >
+          <input
+            id="b-lng"
+            class="field-input !py-2 font-mono text-xs"
+            type="number"
+            step="any"
+            dir="ltr"
+            formControlName="lng"
+          />
+        </div>
+        @if (form.controls.lng.touched && form.controls.lng.invalid) {
+          <span class="field-error">قيمة بين -180 و 180</span>
+        }
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2 border-t border-border-subtle pt-3">
+      <button
+        type="button"
+        class="btn btn-subtle !px-3.5 !py-2.5 text-xs"
+        (click)="cancelled.emit()"
+      >
+        إلغاء الأمر
+      </button>
+      <button type="submit" class="btn btn-primary !px-5 !py-2.5 text-xs" [disabled]="saving()">
+        <span class="material-symbols-outlined text-[17px]" aria-hidden="true">save</span>
+        @if (saving()) {
+          جاري الحفظ...
+        } @else {
+          {{ mode() === 'edit' ? 'تحديث وحفظ التعديلات' : 'حفظ وتثبيت على الخريطة' }}
+        }
+      </button>
+    </div>
+  </form>
+</section>

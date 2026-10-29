@@ -44,6 +44,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IImageService, ImageService>();
         services.AddScoped<ICloudinaryService, CloudinaryService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IMessageService, MessageService>();
         
         // add repositories
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -51,6 +52,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IImageRepository, ImageRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
         
         // add background services
         services.AddHostedRemoveExpiredRefreshTokens();

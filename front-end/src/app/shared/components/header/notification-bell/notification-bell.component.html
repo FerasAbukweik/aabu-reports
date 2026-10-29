@@ -39,7 +39,7 @@
 
     <ul class="divide-y divide-border-subtle overflow-y-auto overscroll-contain">
       @for (n of notifications(); track n.id) {
-        @let meta = typeMeta[n.type];
+        @let meta = getMeta(n.type);
         <li>
           <div
             class="flex w-full items-start gap-3 px-4 py-3 text-start"

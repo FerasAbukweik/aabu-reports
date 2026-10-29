@@ -3,6 +3,7 @@ using AabuReports.Core.Abstractions.Repositories;
 using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Dtos.Locations;
 using AabuReports.Core.Entities;
+using AabuReports.Core.Enums;
 using AabuReports.Core.Results;
 using AabuReports.Core.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -56,6 +57,11 @@ public class LocationService(
             return Result<LocationDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
 
+        if (newLocation.Type == LocationType.Building)
+        {
+            newLocation.State = ReportStateEnum.Normal;
+            newLocation.ReportsCount = 0;
+        }
         return Result<LocationDto>.Success(newLocation.ToDto(), HttpStatusCode.Created);
     }
 

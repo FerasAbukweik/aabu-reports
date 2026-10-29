@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../../core/services/api-services/notification.service';
 import { formatFullDate, formatRelativeDate } from '../../../../core/utils/date-format';
-import { notificationTypeMeta } from '../../../../core/utils/notification-utils';
+import { getNotificationMeta } from '../../../../core/utils/notification-utils';
 import { statusTone } from '../../../../core/utils/status-utils';
 import { IsVisibleDirective } from '../../../../shared/directives/is-visible.directive';
 
@@ -36,7 +36,7 @@ export class NotificationBellComponent {
   protected readonly badgeText = computed(() => (this.unreadCount() > 9 ? '9+' : String(this.unreadCount())));
 
   // template helpers
-  protected readonly typeMeta = notificationTypeMeta;
+  protected readonly getMeta = getNotificationMeta;
   protected readonly statusTone = statusTone;
   protected readonly formatRelativeDate = formatRelativeDate;
   protected readonly formatFullDate = formatFullDate;

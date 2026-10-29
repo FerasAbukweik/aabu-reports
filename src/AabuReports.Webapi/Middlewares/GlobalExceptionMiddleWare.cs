@@ -22,7 +22,7 @@ public class GlobalExceptionMiddleWare(
 
             var res = new
             {
-                message = ex.Message + "|" + ex.InnerException?.Message ?? "no inner exception" // temporary for test
+                message = ex.Message //+ "|" + ex.InnerException?.Message ?? "no inner exception" // temporary for test
             };
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(res) , context.RequestAborted);

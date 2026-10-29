@@ -58,13 +58,6 @@ export class OtpComponent implements OnInit {
 
   // ---------- methods for the parent (via viewChild) ----------
 
-  /** clears the digits, restarts the countdown and focuses the first box */
-  restart(): void {
-    this.clear();
-    this.startTimer();
-    this.focus(0);
-  }
-
   /** clears the digits only (e.g. after a wrong code) */
   clear(): void {
     this.entered.set([]);

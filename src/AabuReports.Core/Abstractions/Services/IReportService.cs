@@ -11,7 +11,7 @@ public interface IReportService
     /// Used by the reports table (the user's own reports) and by the admin (everyone's reports).
     /// </summary>
     /// <param name="userId"> only the reports of this user, null for the reports of everyone </param>
-    Task<Result<IReadOnlyList<ReportDto>>> LazyGetAllAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<ReportDto>>> LazyGetFilteredAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// gets a report by its id, only its owner or an admin can see it

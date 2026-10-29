@@ -32,7 +32,7 @@ public class ReportService(
     private const string FixedNotificationMessage = "تم إصلاح المشكلة، يمكنك الآن تقييم الإصلاح";
     private const string NeedsFollowUpNotificationMessage = "يحتاج بلاغك إلى متابعة إضافية";
     
-    public async Task<Result<IReadOnlyList<ReportDto>>> LazyGetAllAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<ReportDto>>> LazyGetFilteredAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
     {
         var reports = await reportRepository.FilterAsync(
             filterDto.ToPredicate().And(r => (userId == null || r.UserId == userId)),
@@ -52,10 +52,10 @@ public class ReportService(
         
         var filtered = await reportRepository.FilterAsync(
             r => (
-                r.LocationId == locationId && (
+                r.LocationId == locationId && (r.Location!.Type == LocationType.Building || (
                     r.Location!.Reports.Any(r => (int)r.State > (int)ReportStateEnum.Fixed) ||
                     r.Location!.Reports.Any(r => r.FixDate >= lastWeekDate)
-                )
+                ))
             ),
             [],
             r => r.ReportDate,

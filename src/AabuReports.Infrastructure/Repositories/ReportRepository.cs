@@ -46,6 +46,15 @@ public class ReportRepository(
             .SingleOrDefaultAsync(r => r.Id == id, cancellationToken);
     }
 
+    public async Task<Guid?> GetOwnerIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Reports
+            .AsNoTracking()
+            .Where(r => r.Id == id)
+            .Select(r => (Guid?)r.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Report>> LazyGetAllAsync(ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
     {
         return await Filter(

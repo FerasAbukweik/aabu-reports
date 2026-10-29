@@ -1,6 +1,7 @@
 using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Dtos.Locations;
 using AabuReports.Core.Enums;
+using AabuReports.Core.Results;
 using AabuReports.Webapi.ExtensionMethods;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,15 @@ public class LocationController(ILocationService locationService) : ApiControlle
     public async Task<ActionResult<IReadOnlyList<LocationDto>>> GetAll(CancellationToken cancellationToken)
     {
         var result = await locationService.GetAllAsync(cancellationToken);
+
+        return result.ToActionResult();
+    }
+
+    [Authorize(Roles = nameof(AppRole.Admin))]
+    [HttpPost]
+    public async Task<ActionResult<LocationDto>> CreateLocation(LocationCreateDto dto, CancellationToken cancellationToken)
+    {
+        var result = await locationService.CreateAsync(dto, cancellationToken);
 
         return result.ToActionResult();
     }

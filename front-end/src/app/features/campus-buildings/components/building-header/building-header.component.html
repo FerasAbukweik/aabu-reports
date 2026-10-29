@@ -1,0 +1,17 @@
+<div class="card flex flex-col justify-between gap-4 !p-5 lg:flex-row lg:items-center">
+  <div class="flex flex-col">
+    <div class="flex items-center gap-2.5">
+      <span class="inline-block h-7 w-2.5 rounded-full bg-accent" aria-hidden="true"></span>
+      <h1 class="text-2xl font-black text-primary">
+        إدارة وتخطيط مباني الحرم الجامعي - الخريطة التفاعلية
+      </h1>
+    </div>
+    <p class="mt-1.5 text-sm font-medium text-text-secondary">
+      مخطط الحرم الجغرافي لجامعة آل البيت: انقر على أي مبنى لعرض بياناته وتعديلها أو حذفه، أو انقر
+      على أي مكان فارغ لإضافة مبنى جديد.
+    </p>
+  </div>
+  <span class="badge-neutral self-start rounded-full px-3 py-1 text-xs font-bold lg:self-center">
+    {{ count() }} مبنى مسجل
+  </span>
+</div>

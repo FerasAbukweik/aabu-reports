@@ -1,0 +1,53 @@
+<app-dialog
+  [open]="!!row()"
+  title="تحديث حالة البلاغ"
+  [subtitle]="row()?.shortId"
+  icon="edit_note"
+  maxWidth="max-w-md"
+  (closed)="closed.emit()"
+>
+  @if (row(); as r) {
+    <div class="flex flex-col gap-4">
+      <p class="text-sm font-medium text-text-secondary">اختر الحالة الجديدة للبلاغ:</p>
+
+      <div class="flex flex-col gap-2" role="radiogroup" aria-label="حالة البلاغ">
+        @for (state of states; track state) {
+          <button
+            type="button"
+            role="radio"
+            class="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-start text-sm font-bold transition-colors focus-visible:ring-2 focus-visible:ring-border-focus"
+            [class]="
+              selected() === state
+                ? 'border-primary bg-primary-container text-primary'
+                : 'border-border-subtle text-text-primary hover:bg-surface-card-subtle'
+            "
+            [attr.aria-checked]="selected() === state"
+            (click)="selected.set(state)"
+          >
+            <span class="flex items-center gap-2">
+              <span class="tone-dot h-2 w-2 shrink-0 rounded-full" [class]="stateTone[state]"></span>
+              {{ stateLabel[state] }}
+            </span>
+            @if (state === r.state) {
+              <span class="text-xs font-semibold text-text-muted">الحالة الحالية</span>
+            }
+          </button>
+        }
+      </div>
+
+      <div class="flex w-full items-center gap-3 border-t border-border-subtle pt-4">
+        <button
+          type="button"
+          class="btn btn-accent flex-1 py-2.5 text-sm"
+          [disabled]="isUnchanged() || submitting()"
+          (click)="submit()"
+        >
+          {{ submitting() ? 'جارٍ الحفظ...' : 'حفظ الحالة' }}
+        </button>
+        <button type="button" class="btn btn-subtle flex-1 py-2.5 text-sm" (click)="closed.emit()">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  }
+</app-dialog>

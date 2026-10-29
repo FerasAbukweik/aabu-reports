@@ -42,6 +42,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
+app.MapHub<MessageHub>("/hubs/message");
 
 await app.Services.SeedAdminAsync(app.Configuration);
 

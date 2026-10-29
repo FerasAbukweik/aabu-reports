@@ -47,6 +47,8 @@ public class Report
     public required Guid UserId { get; set; }
     public ApplicationUser? User { get; set; }
 
+    public List<Message> Messages = new();
+
 
     // methods
 

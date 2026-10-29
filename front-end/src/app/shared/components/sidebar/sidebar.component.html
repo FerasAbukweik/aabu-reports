@@ -7,11 +7,11 @@
 >
   <div class="flex flex-col gap-5 px-3">
     <div class="px-3 text-[11px] font-extrabold tracking-wider text-text-secondary">
-      {{ title }}
+      {{ title() }}
     </div>
 
     <nav [attr.aria-label]="ariaLabel" class="flex flex-col gap-1.5">
-      @for (item of navItems; track item.route) {
+      @for (item of navItems(); track item.route) {
         <a
           [routerLink]="item.route"
           routerLinkActive
