@@ -5,7 +5,7 @@ import {
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
 import { ThemeService } from './core/services/local/theme.service';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
@@ -15,7 +15,7 @@ import { refreshTokenInterceptor } from './core/interceptors/refresh-token';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    provideRouter(routes, withComponentInputBinding()),
     provideZonelessChangeDetection(),
     provideAppInitializer(() => {
       inject(ThemeService);

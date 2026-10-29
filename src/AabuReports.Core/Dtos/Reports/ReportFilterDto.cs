@@ -73,8 +73,9 @@ public class ReportFilterDto
              (searchId != null && r.Id.ToString().Replace("-", "").Contains(searchId)));
     }
 
-    /// <summary> "#3F2A9C1E" or "3f2a-9c1e" -> "3F2A9C1E" (how the id looks without the dashes), null if nothing is left </summary>
-    private static string? NormalizeId(string? value)
+    /// <summary> "#3F2A9C1E" or "3f2a-9c1e" -> "3F2A9C1E" (how the id looks without the dashes), null if nothing is left.
+    /// also used to look a report up by the short number the user sees (GET /report/{id}) </summary>
+    public static string? NormalizeId(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
 

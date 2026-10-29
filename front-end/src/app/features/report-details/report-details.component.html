@@ -1,0 +1,399 @@
+<div class="mx-auto flex max-w-7xl flex-col gap-6">
+  <!-- Breadcrumb + back -->
+  <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+    <nav aria-label="مسار التنقل" class="flex items-center gap-2 text-sm font-bold text-text-secondary">
+      <a routerLink="/history" class="flex items-center gap-1 transition-colors hover:text-primary">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">assignment</span>
+        <span>سجل البلاغات</span>
+      </a>
+      <span class="material-symbols-outlined text-[16px] text-text-muted rtl:rotate-180" aria-hidden="true"
+        >chevron_right</span
+      >
+      <span class="flex items-center gap-1 text-text-primary">
+        <span>بلاغ</span>
+        <span class="font-mono text-primary" dir="ltr">{{ row()?.shortId ?? '...' }}</span>
+      </span>
+    </nav>
+
+    <a routerLink="/history" class="btn btn-subtle self-start px-4 py-2 text-sm sm:self-auto">
+      <span class="material-symbols-outlined text-[18px] rtl:rotate-180" aria-hidden="true">arrow_back</span>
+      <span>العودة إلى السجل</span>
+    </a>
+  </div>
+
+  @if (isLoading()) {
+    <!-- Loading skeleton -->
+    <div class="flex flex-col gap-6" role="status" aria-label="جارٍ تحميل البلاغ">
+      <div class="card h-40 animate-pulse"></div>
+      <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+        <div class="flex flex-col gap-6 lg:col-span-8">
+          <div class="card h-48 animate-pulse"></div>
+          <div class="card h-56 animate-pulse"></div>
+        </div>
+        <div class="card h-80 animate-pulse lg:col-span-4"></div>
+      </div>
+    </div>
+  } @else if (hasFailed()) {
+    <!-- Error (the toast already told why) -->
+    <div class="card flex flex-col items-center gap-3 py-12 text-center">
+      <span
+        class="flex h-16 w-16 items-center justify-center rounded-2xl bg-status-error-bg text-status-error"
+      >
+        <span class="material-symbols-outlined text-[34px]" aria-hidden="true">error</span>
+      </span>
+      <p class="text-base font-extrabold text-primary">تعذر تحميل البلاغ</p>
+      <p class="max-w-sm text-sm font-medium text-text-secondary">
+        قد يكون البلاغ غير موجود أو لا تملك صلاحية عرضه، أو حدثت مشكلة في الاتصال.
+      </p>
+      <div class="mt-2 flex items-center gap-3">
+        <button type="button" class="btn btn-primary px-5 py-2 text-sm" (click)="retry()">
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">refresh</span>
+          <span>إعادة المحاولة</span>
+        </button>
+        <a routerLink="/history" class="btn btn-subtle px-5 py-2 text-sm">سجل البلاغات</a>
+      </div>
+    </div>
+  } @else if (row(); as r) {
+    <!-- Summary header -->
+    <section aria-labelledby="report-title" class="card relative overflow-hidden">
+      <div class="absolute inset-x-0 top-0 h-1.5 bg-linear-to-l from-accent via-primary to-primary-hover"></div>
+
+      <div class="flex flex-col justify-between gap-6 pt-1 lg:flex-row lg:items-start">
+        <div class="flex flex-1 flex-col gap-3">
+          <!-- number + state + severity -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <div
+              class="inline-flex items-center gap-1 overflow-hidden rounded-lg border border-border-subtle bg-surface-card-subtle py-1 pe-1 ps-2.5"
+            >
+              <span class="font-mono text-sm font-bold tracking-wider text-text-primary" dir="ltr">{{
+                r.shortId
+              }}</span>
+              <button
+                type="button"
+                class="rounded p-1 text-text-secondary transition-colors hover:bg-primary-container hover:text-primary"
+                title="نسخ رقم البلاغ"
+                aria-label="نسخ رقم البلاغ"
+                (click)="copyNumber()"
+              >
+                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
+              </button>
+            </div>
+
+            <span
+              class="tone-chip inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-bold"
+              [class]="stateTone[r.state]"
+              role="status"
+            >
+              <span
+                class="tone-dot h-2 w-2 rounded-full"
+                [class.animate-pulse]="r.state === ReportState.InProgress"
+              ></span>
+              {{ stateLabel[r.state] }}
+            </span>
+
+            <span
+              class="tone-chip inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold"
+              [class]="severityTone[r.severity]"
+            >
+              <span class="tone-dot h-1.5 w-1.5 rounded-full"></span>
+              {{ severityLabel[r.severity] }}
+            </span>
+          </div>
+
+          <!-- the report has no title: the category is the heading, the location is under it -->
+          <h1 id="report-title" class="flex items-center gap-2.5 text-2xl font-black text-primary lg:text-3xl">
+            <span class="material-symbols-outlined text-[32px] text-accent" aria-hidden="true">{{
+              categoryIcon[r.category]
+            }}</span>
+            <span>{{ categoryLabel[r.category] }}</span>
+          </h1>
+          <p class="flex items-center gap-1.5 text-sm font-semibold text-text-secondary">
+            <span class="material-symbols-outlined text-[18px] text-accent" aria-hidden="true">location_on</span>
+            <span>{{ r.report.locationTitle }}</span>
+          </p>
+
+          <!-- next step -->
+          @if (nextStep(); as next) {
+            <div
+              class="inline-flex items-center gap-2 self-start rounded-xl border border-border-subtle bg-surface-card-subtle px-3.5 py-2 text-sm"
+            >
+              <span class="material-symbols-outlined text-[18px] shrink-0 text-primary" aria-hidden="true"
+                >task_alt</span
+              >
+              <span class="font-bold text-text-primary">الحالة الآن:</span>
+              <span class="text-text-secondary">{{ next }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- actions -->
+        <div class="flex shrink-0 flex-wrap items-center gap-2 self-start">
+          @if (r.canRate) {
+            <button type="button" class="btn btn-accent px-5 py-2.5 text-sm" (click)="ratingOpen.set(true)">
+              <span class="material-symbols-outlined text-[19px]" aria-hidden="true">star</span>
+              <span>قيّم الخدمة</span>
+            </button>
+          }
+          <button type="button" class="btn btn-subtle px-4 py-2.5 text-sm" (click)="share()">
+            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">share</span>
+            <span>مشاركة</span>
+          </button>
+          <button type="button" class="btn btn-subtle px-4 py-2.5 text-sm" (click)="print()">
+            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">print</span>
+            <span>طباعة</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+      <!-- ===== Main column ===== -->
+      <div class="flex flex-col gap-6 lg:col-span-8">
+        <!-- Stepper -->
+        <section aria-labelledby="stepper-heading" class="card">
+          <div class="mb-5 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">route</span>
+            <h2 id="stepper-heading" class="text-base font-bold text-text-primary">مراحل سير البلاغ</h2>
+          </div>
+
+          <div class="relative">
+            <!-- line behind the steps (the centers of the first and last of 4 columns) -->
+            <div class="absolute inset-x-[12.5%] top-6 -z-0 hidden h-0.5 bg-border-subtle md:block">
+              <div class="h-full bg-primary transition-all duration-500" [style.width.%]="progress()"></div>
+            </div>
+
+            <ol class="relative z-10 grid grid-cols-2 gap-4 md:grid-cols-4">
+              @for (step of steps(); track step.label; let i = $index) {
+                <li
+                  class="flex flex-col items-center text-center"
+                  [class.opacity-70]="step.status === 'upcoming'"
+                  [attr.aria-current]="step.status === 'current' ? 'step' : null"
+                >
+                  <span
+                    class="mb-2 flex h-12 w-12 items-center justify-center rounded-full font-bold shadow-sm"
+                    [class]="
+                      step.status === 'done'
+                        ? 'bg-status-success text-white ring-4 ring-status-success-bg'
+                        : step.status === 'current'
+                          ? 'bg-primary text-on-primary ring-4 ring-primary-container'
+                          : step.status === 'warning'
+                            ? 'bg-status-warning text-white ring-4 ring-status-warning-bg'
+                            : 'border-2 border-border-muted bg-surface-card-subtle text-text-muted'
+                    "
+                  >
+                    <span class="material-symbols-outlined text-[22px]" aria-hidden="true">{{
+                      step.status === 'done' ? 'check' : step.icon
+                    }}</span>
+                  </span>
+                  <span class="text-sm font-bold text-text-primary">{{ i + 1 }}. {{ step.label }}</span>
+                  @if (step.note) {
+                    <span class="mt-0.5 text-xs text-text-secondary">{{ step.note }}</span>
+                  }
+                  <span
+                    class="tone-chip mt-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                    [class]="
+                      step.status === 'done'
+                        ? 'tone-success'
+                        : step.status === 'current'
+                          ? 'tone-info'
+                          : step.status === 'warning'
+                            ? 'tone-warning'
+                            : 'tone-normal'
+                    "
+                  >
+                    {{
+                      step.status === 'done'
+                        ? 'مكتمل'
+                        : step.status === 'current'
+                          ? 'المرحلة الحالية'
+                          : step.status === 'warning'
+                            ? 'تتطلب انتباهًا'
+                            : 'متبقي'
+                    }}
+                  </span>
+                </li>
+              }
+            </ol>
+          </div>
+        </section>
+
+        <!-- Description -->
+        <section aria-labelledby="description-heading" class="card flex flex-col gap-3">
+          <div class="flex items-center gap-2 border-b border-border-subtle pb-3">
+            <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">description</span>
+            <h2 id="description-heading" class="text-base font-bold text-text-primary">وصف المشكلة</h2>
+          </div>
+          <p
+            class="whitespace-pre-line rounded-xl border border-border-subtle bg-surface-card-subtle p-4 text-sm font-medium leading-relaxed text-text-primary"
+          >
+            {{ r.report.description }}
+          </p>
+        </section>
+
+        <!-- Images -->
+        @if (r.report.imageUrls.length > 0) {
+          <section aria-labelledby="images-heading" class="card flex flex-col gap-3">
+            <div class="flex items-center justify-between border-b border-border-subtle pb-3">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true"
+                  >photo_library</span
+                >
+                <h2 id="images-heading" class="text-base font-bold text-text-primary">
+                  الصور المرفقة ({{ r.report.imageUrls.length }})
+                </h2>
+              </div>
+              <span class="text-xs text-text-muted">انقر للتكبير</span>
+            </div>
+
+            <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              @for (url of r.report.imageUrls; track url; let i = $index) {
+                <li>
+                  <button
+                    type="button"
+                    class="group relative block aspect-video w-full overflow-hidden rounded-xl border border-border-subtle bg-surface-card-subtle focus-visible:ring-2 focus-visible:ring-border-focus"
+                    [attr.aria-label]="'تكبير صورة البلاغ ' + (i + 1)"
+                    (click)="lightboxUrl.set(url)"
+                  >
+                    <img
+                      [src]="url"
+                      [alt]="'صورة البلاغ ' + (i + 1)"
+                      loading="lazy"
+                      decoding="async"
+                      class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                    <span
+                      class="absolute inset-0 flex items-center justify-center bg-text-primary/40 opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <span class="material-symbols-outlined text-[24px] text-white" aria-hidden="true"
+                        >zoom_in</span
+                      >
+                    </span>
+                  </button>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        <!-- Rating -->
+        <section
+          aria-labelledby="rating-heading"
+          class="card flex flex-col gap-3"
+          [class.border-accent]="r.canRate"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[24px] text-accent" aria-hidden="true">stars</span>
+              <h2 id="rating-heading" class="text-base font-bold text-text-primary">
+                تقييم جودة الصيانة وسرعة الاستجابة
+              </h2>
+            </div>
+            @if (r.rate !== null) {
+              <app-star-rating [value]="r.rate" [size]="26" />
+            }
+          </div>
+
+          @if (r.rate !== null) {
+            <p class="text-sm font-medium text-text-secondary">شكرًا لك، تم تسجيل تقييمك لهذا البلاغ.</p>
+          } @else if (r.canRate) {
+            <p class="text-sm font-medium text-text-secondary">
+              تم إنهاء أعمال الصيانة لهذا البلاغ. رأيك يساعد الجامعة على رفع كفاءة الخدمات الطلابية ومرافق التعلم.
+            </p>
+            <button type="button" class="btn btn-accent self-start px-5 py-2 text-sm" (click)="ratingOpen.set(true)">
+              <span class="material-symbols-outlined text-[18px]" aria-hidden="true">star</span>
+              <span>قيّم الآن</span>
+            </button>
+          } @else {
+            <p class="text-sm font-semibold text-text-muted">يتاح التقييم بعد إنجاز الصيانة</p>
+          }
+        </section>
+      </div>
+
+      <!-- ===== Side column ===== -->
+      <aside class="flex flex-col gap-6 lg:col-span-4">
+        <section aria-labelledby="info-heading" class="card flex flex-col gap-5">
+          <div class="flex items-center gap-2 border-b border-border-subtle pb-3">
+            <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">info</span>
+            <h2 id="info-heading" class="text-base font-bold text-text-primary">معلومات البلاغ والموقع</h2>
+          </div>
+
+          <!-- location -->
+          <div class="flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-card-subtle p-4">
+            <div class="flex items-center gap-2 text-sm font-extrabold text-text-primary">
+              <span class="material-symbols-outlined text-[20px] text-status-error" aria-hidden="true"
+                >location_pin</span
+              >
+              <span>{{ r.report.locationTitle }}</span>
+            </div>
+            <span class="font-mono text-xs text-text-secondary" dir="ltr">
+              {{ r.report.coordinates.lat | number: '1.5-5' }}, {{ r.report.coordinates.lng | number: '1.5-5' }}
+            </span>
+            <a
+              class="link-accent mt-1 self-start"
+              [href]="googleMapsUrl(r.report.coordinates)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>فتح الموقع في خرائط جوجل</span>
+              <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span>
+            </a>
+          </div>
+
+          <!-- facts -->
+          <dl class="flex flex-col gap-1 text-sm">
+            <div class="flex items-center justify-between gap-3 border-b border-border-subtle py-2">
+              <dt class="text-text-secondary">التصنيف:</dt>
+              <dd class="flex items-center gap-1 font-bold text-text-primary">
+                <span class="material-symbols-outlined text-[16px] text-accent" aria-hidden="true">{{
+                  categoryIcon[r.category]
+                }}</span>
+                {{ categoryLabel[r.category] }}
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-b border-border-subtle py-2">
+              <dt class="text-text-secondary">مستوى الخطورة:</dt>
+              <dd>
+                <span
+                  class="tone-chip rounded border-0 px-2 py-0.5 text-xs font-bold"
+                  [class]="severityTone[r.severity]"
+                  >{{ severityLabel[r.severity] }}</span
+                >
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-b border-border-subtle py-2">
+              <dt class="text-text-secondary">حالة البلاغ:</dt>
+              <dd>
+                <span class="tone-chip rounded border-0 px-2 py-0.5 text-xs font-bold" [class]="stateTone[r.state]">{{
+                  stateLabel[r.state]
+                }}</span>
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3 py-2">
+              <dt class="text-text-secondary">تاريخ التقديم:</dt>
+              <dd class="font-semibold text-text-primary">{{ formatFullDate(r.report.reportDate) }}</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+    </div>
+  }
+</div>
+
+<!-- Image lightbox -->
+<app-dialog
+  [open]="lightboxUrl() !== null"
+  title="الصورة المرفقة"
+  [subtitle]="row()?.shortId"
+  icon="image"
+  maxWidth="max-w-4xl"
+  (closed)="lightboxUrl.set(null)"
+>
+  @if (lightboxUrl(); as url) {
+    <div class="flex max-h-[70vh] items-center justify-center overflow-auto rounded-xl bg-surface-card-subtle">
+      <img [src]="url" alt="صورة البلاغ مكبرة" class="max-h-[68vh] w-auto object-contain" />
+    </div>
+  }
+</app-dialog>
+
+<!-- Rating dialog (the same one the history table uses) -->
+<app-report-rating-modal [row]="ratingRow()" (closed)="ratingOpen.set(false)" (rated)="onRated($event)" />

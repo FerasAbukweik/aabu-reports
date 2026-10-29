@@ -15,7 +15,6 @@ import { ReportSeverity } from '../../core/enums/report-severity.enum';
 import { ReportState } from '../../core/enums/report-state.enum';
 import { Status } from '../../core/enums/status.enum';
 import { ReportsTableService } from '../../core/services/api-services/reports-table.service';
-import { parseEnum } from '../../core/utils/enum-utils';
 import { locationStatusLabel, locationStatusTone } from '../../core/utils/location-util';
 import {
   REPORT_CATEGORIES,
@@ -35,9 +34,8 @@ import {
 import { StarRatingComponent } from '../../shared/components/star-rating/star-rating.component';
 import { StatCardsComponent } from '../../shared/components/stat-card/stat-cards.component';
 import { StatCard } from '../../shared/components/stat-card/stat-card.model';
-import { ReportDetailsModalComponent } from './components/report-details-modal/report-details-modal.component';
 import { ReportRatingModalComponent } from './components/report-rating-modal/report-rating-modal.component';
-import { ReportRow } from './reports-history.model';
+import { ReportRow, toReportRow } from './reports-history.model';
 
 /** the states a report can be in (a report is never "normal", that one is only for locations without reports) */
 const REPORT_STATES: readonly ReportState[] = [
@@ -89,11 +87,6 @@ function toFilter(query: string, { state, category }: FilterValues): ReportFilte
   };
 }
 
-/** "3f2a9c1e-..." -> "#3F2A9C1E" */
-function toShortId(id: string): string {
-  return '#' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
-}
-
 @Component({
   selector: 'app-reports-history',
   imports: [
@@ -104,7 +97,6 @@ function toShortId(id: string): string {
     DataTableComponent,
     TableCellDirective,
     StarRatingComponent,
-    ReportDetailsModalComponent,
     ReportRatingModalComponent,
   ],
   templateUrl: './reports-history.component.html',
@@ -165,8 +157,7 @@ export class ReportsHistoryComponent {
     );
   });
 
-  // dialogs
-  protected readonly detailsRow = signal<ReportRow | null>(null);
+  // dialog
   protected readonly ratingRow = signal<ReportRow | null>(null);
 
   constructor() {
@@ -200,20 +191,7 @@ export class ReportsHistoryComponent {
 
   /** every report of the page on the screen */
   private readonly allRows = computed<ReportRow[]>(() => {
-    return this.reportsTable.reports().map((report) => {
-      const state = parseEnum(ReportState, report.state, ReportState.Normal);
-      const rate = report.rate ?? null;
-
-      return {
-        report,
-        state,
-        category: parseEnum(ReportCategory, report.category, ReportCategory.Other),
-        severity: parseEnum(ReportSeverity, report.severity, ReportSeverity.Low),
-        rate,
-        shortId: toShortId(report.id),
-        canRate: state === ReportState.Fixed && rate === null,
-      };
-    });
+    return this.reportsTable.reports().map(toReportRow);
   });
 
   /** the reports of the page on the screen (the search and the filters are applied by the api) */
@@ -323,17 +301,11 @@ export class ReportsHistoryComponent {
     this.goToPage(this.requestedPage);
   }
 
-  protected openDetails(row: ReportRow): void {
-    this.detailsRow.set(row);
-  }
-
   protected openRating(row: ReportRow): void {
-    this.detailsRow.set(null);
     this.ratingRow.set(row);
   }
 
-  /** the dialogs hold a row, so after a rating the row is looked up again to show the new state */
-  protected readonly liveDetailsRow = computed(() => this.findRow(this.detailsRow()));
+  /** the dialog holds a row, so after a rating the row is looked up again to show the new state */
   protected readonly liveRatingRow = computed(() => this.findRow(this.ratingRow()));
 
   private findRow(row: ReportRow | null): ReportRow | null {

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { reportNumberFragmentGuard } from './core/guards/report-id-fragment.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login-signup' },
@@ -21,6 +22,8 @@ export const routes: Routes = [
       {
         path: 'report',
         pathMatch: 'full',
+        // /report/#968FCB28 reaches the router as /report + the fragment, this sends it to /report/968FCB28
+        canActivate: [reportNumberFragmentGuard],
         title: 'خريطة الحرم وإبلاغ المشاكل',
         loadComponent: () =>
           import('./features/campus-map/campus-map.component').then((m) => m.CampusMapComponent),
@@ -32,6 +35,15 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/reports-history/reports-history.component').then(
             (m) => m.ReportsHistoryComponent,
+          ),
+      },
+      {
+        // :id is bound to the `id` input of the component (withComponentInputBinding)
+        path: 'report/:id',
+        title: 'تفاصيل البلاغ',
+        loadComponent: () =>
+          import('./features/report-details/report-details.component').then(
+            (m) => m.ReportDetailsComponent,
           ),
       },
     ],

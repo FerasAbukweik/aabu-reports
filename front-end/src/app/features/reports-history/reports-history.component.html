@@ -159,22 +159,16 @@
 
     <!-- actions -->
     <ng-template appTableCell="actions" [appTableCellOf]="rows()" let-row>
-      <button
-        type="button"
-        class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-card-subtle hover:text-primary"
+      <a
+        class="inline-flex rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-card-subtle hover:text-primary"
         title="عرض التفاصيل"
+        [routerLink]="['/report', row.report.id]"
         [attr.aria-label]="'عرض تفاصيل البلاغ ' + row.shortId"
-        (click)="openDetails(row)"
       >
         <span class="material-symbols-outlined text-[20px]" aria-hidden="true">visibility</span>
-      </button>
+      </a>
     </ng-template>
   </app-data-table>
 </div>
 
-<app-report-details-modal
-  [row]="liveDetailsRow()"
-  (closed)="detailsRow.set(null)"
-  (rateRequested)="openRating($event)"
-/>
 <app-report-rating-modal [row]="liveRatingRow()" (closed)="ratingRow.set(null)" />

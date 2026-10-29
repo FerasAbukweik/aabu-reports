@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Net;
 using AabuReports.Core.Abstractions.Repositories;
 using AabuReports.Core.Abstractions.Services;
@@ -20,6 +21,7 @@ public class ReportService(
     ILogger<ReportService> logger) : IReportService
 {
     private const string NotFoundMessage = "Report not found";
+    private const string AmbiguousIdMessage = "The short number matches more than one report, use the full id";
     private const string LocationNotFoundMessage = "Location not found";
     private const string NotYourReportMessage = "You can only access your own reports";
     private const string NotFixedMessage = "A report can only be rated after it is fixed";
@@ -65,14 +67,37 @@ public class ReportService(
         return Result<IReadOnlyList<ReportMapDto>>.Success(filtered.Select(r => r.ToMapDto()).ToList());
     }
 
-    public async Task<Result<ReportDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<ReportDto>> GetByIdAsync(string idOrShortId, CancellationToken cancellationToken = default)
     {
-        var report = await reportRepository.GetByIdAsync(id, cancellationToken);
-        if (report is null)
+        // "#968FCB28" -> "968FCB28", the same normalization the Id / Search filters use
+        var text = ReportFilterDto.NormalizeId(idOrShortId);
+        if (text is null || text.Length > 32 || !text.All(Uri.IsHexDigit))
             return Result<ReportDto>.Failure(NotFoundMessage, HttpStatusCode.NotFound);
 
-        return Result<ReportDto>.Success(report.ToDto());
+        // a whole guid is an exact match, anything shorter is the start of the id (the short number is its first 8 characters)
+        Expression<Func<Report, bool>> byId = Guid.TryParseExact(text, "N", out var guid)
+            ? r => r.Id == guid
+            : r => r.Id.ToString().Replace("-", "").StartsWith(text);
+
+        // the owner check is part of the query: another user's report is "not found" (not revealed),
+        // and a short number can only clash with the user's own reports
+        var matches = await reportRepository.FilterAsync(
+            byId,
+            [r => r.Images, r => r.Location],
+            r => r.ReportDate,
+            true,
+            null,
+            2, // two are enough to know the short number is ambiguous
+            cancellationToken);
+
+        return matches.Count switch
+        {
+            0 => Result<ReportDto>.Failure(NotFoundMessage, HttpStatusCode.NotFound),
+            1 => Result<ReportDto>.Success(matches[0].ToDto()),
+            _ => Result<ReportDto>.Failure(AmbiguousIdMessage, HttpStatusCode.Conflict)
+        };
     }
+
     public async Task<Result<ReportCreateResponseDto>> CreateForLocationIdAsync(Guid userId, ReportCreateForLocationDto reportData, CancellationToken cancellationToken = default)
     {
         var location = await locationRepository.GetByIdAsync(reportData.LocationId, cancellationToken);

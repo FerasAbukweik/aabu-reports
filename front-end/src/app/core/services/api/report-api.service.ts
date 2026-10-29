@@ -94,8 +94,10 @@ export class ReportApiService {
     return this.http.get<MaintenanceStatsDTO>(`${this.url}/stats`);
   }
 
+  /** `id` is the guid or the short number of the report ("968FCB28" / "#968FCB28", the backend resolves both) */
   public getById(id: string) {
-    return this.http.get<ReportDTO>(`${this.url}/${id}`);
+    // encoded: a "#" is not a valid part of a url path
+    return this.http.get<ReportDTO>(`${this.url}/${encodeURIComponent(id)}`);
   }
 
   public createForLocation(dto: ReportCreateForLocationDTO) {

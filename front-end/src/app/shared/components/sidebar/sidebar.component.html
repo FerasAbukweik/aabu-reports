@@ -15,6 +15,7 @@
         <a
           [routerLink]="item.route"
           routerLinkActive
+          [routerLinkActiveOptions]="{ exact: !!item.exact }"
           #rla="routerLinkActive"
           ariaCurrentWhenActive="page"
           (click)="layout.closeNav()"

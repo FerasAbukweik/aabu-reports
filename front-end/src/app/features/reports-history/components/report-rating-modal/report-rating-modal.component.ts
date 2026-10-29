@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize } from 'rxjs';
+import { ReportDTO } from '../../../../core/DTOs/report/report-dto';
 import { ReportsTableService } from '../../../../core/services/api-services/reports-table.service';
 import { ToastService } from '../../../../core/services/local/toast.service';
 import { DialogComponent } from '../../../../shared/components/dialog/dialog.component';
@@ -32,6 +33,8 @@ export class ReportRatingModalComponent {
   readonly row = input<ReportRow | null>(null);
 
   readonly closed = output<void>();
+  /** the report was rated: the api sent the whole report back (with its rate) */
+  readonly rated = output<ReportDTO>();
 
   protected readonly stars = STARS;
   protected readonly ratingLabel = RATING_LABEL;
@@ -71,7 +74,8 @@ export class ReportRatingModalComponent {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: () => {
+        next: (updated) => {
+          this.rated.emit(updated);
           this.toast.success('شكرًا لك', `تم تسجيل تقييمك للبلاغ ${row.shortId}`);
           this.closed.emit();
         },
