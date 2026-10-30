@@ -15,7 +15,7 @@ public class ReportCreateDto
     public required ReportSeverity Severity { get; set; }
 
     [Required]
-    [StringLength(1000, MinimumLength = 1)]
+    [StringLength(500, MinimumLength = 1)]
     public required string Description { get; set; }
 
     /// <summary> optional images of the problem (sent as multipart/form-data, only image files are accepted) </summary>

@@ -1,6 +1,7 @@
 using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Dtos.Notifications;
 using AabuReports.Webapi.Hubs;
+using AabuReports.Webapi.Hubs.NotificationHub;
 using Microsoft.AspNetCore.SignalR;
 
 namespace AabuReports.Webapi.Services;

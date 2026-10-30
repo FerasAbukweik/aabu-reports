@@ -43,7 +43,9 @@ public class LocationService(
                 Lat = locationCreateDto.Coordinates.Lat,
                 Lng = locationCreateDto.Coordinates.Lng
             },
-            Type = locationCreateDto.Type
+            Type = locationCreateDto.Type,
+            ActiveReportsCount = 0,
+            State = ReportStateEnum.Normal
         };
 
         locationRepository.AddLocation(newLocation);

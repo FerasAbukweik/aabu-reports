@@ -207,8 +207,12 @@ public class ReportService(
         {
             var imagesResult = await imageService.UploadForReportAsync(newReport.Id, newReportData.Images, cancellationToken);
             if (!imagesResult.IsSuccess)
+            {
+                // the report was never saved, so stop tracking it: a later SaveChanges in the same
+                // request must not save it without its images (removing an unsaved entity just detaches it)
+                await reportRepository.RemoveById(newReport.Id, CancellationToken.None);
                 return imagesResult.MapFailure<ReportCreateResponseDto>();
-
+            }
         }
         else if (!await reportRepository.SaveChangesAsync(cancellationToken))
         {
@@ -225,7 +229,7 @@ public class ReportService(
         location.ActiveReportsCount = (location.ActiveReportsCount ?? 0) + 1;
         if (location.State is null || (int)location.State.Value < (int)ReportStateEnum.Pending)
             location.State = ReportStateEnum.Pending;
-        
+
         return Result<ReportCreateResponseDto>.Success(new ReportCreateResponseDto()
         {
             Location = location.ToDto(),

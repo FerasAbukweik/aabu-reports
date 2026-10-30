@@ -4,6 +4,8 @@ using AabuReports.Webapi.ExtensionMethods;
 using AabuReports.Webapi.Hubs;
 using AabuReports.Webapi.Middlewares;
 using AabuReports.Webapi;
+using AabuReports.Webapi.Hubs.MessagesHub;
+using AabuReports.Webapi.Hubs.NotificationHub;
 using Scalar.AspNetCore;
 using Serilog;
 

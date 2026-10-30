@@ -1,6 +1,6 @@
 using AabuReports.Core.Dtos.Messages;
 
-namespace AabuReports.Webapi.Hubs;
+namespace AabuReports.Webapi.Hubs.MessagesHub;
 
 /// <summary> the methods the server can call on a connected client (the frontend listens to these names) </summary>
 public interface IMessageClient

@@ -3,7 +3,7 @@ using AabuReports.Webapi.ExtensionMethods;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
-namespace AabuReports.Webapi.Hubs;
+namespace AabuReports.Webapi.Hubs.MessagesHub;
 
 /// <summary>
 /// the live chat of one report. The client connects with "?reportId={guid}" and joins the group named after the report,

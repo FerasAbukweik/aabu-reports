@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
-namespace AabuReports.Webapi.Hubs;
+namespace AabuReports.Webapi.Hubs.NotificationHub;
 
 /// <summary>
 /// server to client only: the server pushes notifications through <see cref="INotificationClient"/>, the clients send nothing.
