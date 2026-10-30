@@ -73,6 +73,16 @@
       interval: 5s
       timeout: 3s
       retries: 5
+      
+  angular:
+    container_name: AabuReports.angular
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+    ports:
+      - "4000:80"
+    depends_on:
+      - aabu_reports
 
 volumes:
   mssql_data:
