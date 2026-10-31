@@ -33,14 +33,6 @@ export class MapReportsService {
   public readonly isLocationReportsLoading = this._isLocationReportsLoading.asReadonly();
 
   /**
-   * the last page of the location failed to load, the key is the location id. The inspector asks for pages itself
-   * when its sentinel is on the screen, and the sentinel comes back after every request, so without this it would
-   * ask again and again: the user retries by hand.
-   */
-  private readonly _locationReportsFailed = signal<Record<string, boolean>>({});
-  public readonly locationReportsFailed = this._locationReportsFailed.asReadonly();
-
-  /**
    * the api returned an empty page for the location, so there is no more, even if its `reportsCount` says there is
    * (the count can be old, e.g. a report was deleted). Without this the sentinel would ask for the empty page again and again.
    */
@@ -104,9 +96,9 @@ export class MapReportsService {
    * and flag, so the first call for a location loads its first page and going back to a location
    * keeps what was loaded.
    * Does nothing when that location has no more, or a page of it is already loading.
-   * A call after a failure is a retry (the failed flag is cleared when it starts).
+   * A call after a failure is a retry.
    * Unsubscribing cancels the request.
-   * On failure it shows an error toast and rethrows the error.
+   * On failure it shows an error toast and rethrows the error (the caller keeps track of the failure).
    */
   public loadMoreLocationReports(locationId: string): Observable<readonly ReportMapDTO[]> {
     // defer: the state is read when the request is subscribed, not when this method is called
@@ -118,7 +110,6 @@ export class MapReportsService {
         return EMPTY;
       }
 
-      this.setLocationReportsFailed(locationId, false);
       this.setLocationReportsLoading(locationId, true);
 
       // the reports already loaded of this location are the ones taken
@@ -137,7 +128,6 @@ export class MapReportsService {
               this._locationReportsExhausted.update((all) => ({ ...all, [locationId]: true }));
           }),
           finalize(() => this.setLocationReportsLoading(locationId, false)),
-          tap({ error: () => this.setLocationReportsFailed(locationId, true) }),
           toastError(this.toast, 'تعذر تحميل بلاغات الموقع', (e) => this.errorMessage(e)),
         );
     });
@@ -146,10 +136,6 @@ export class MapReportsService {
   // private
   private setLocationReportsLoading(locationId: string, isLoading: boolean): void {
     this._isLocationReportsLoading.update((all) => ({ ...all, [locationId]: isLoading }));
-  }
-
-  private setLocationReportsFailed(locationId: string, hasFailed: boolean): void {
-    this._locationReportsFailed.update((all) => ({ ...all, [locationId]: hasFailed }));
   }
 
   private errorMessage(error: HttpErrorResponse): string {

@@ -1,154 +1,120 @@
-import { inject, Injectable, OnDestroy, signal } from '@angular/core';
-import * as signalR from '@microsoft/signalr';
-import { firstValueFrom, Subject } from 'rxjs';
-import { URLs } from '../../constants/URLs';
+import { inject, Injectable } from '@angular/core';
+import { Subject } from 'rxjs';
 import { MessageDTO } from '../../DTOs/message/message-dto';
-import { AuthService } from '../api-services/auth.service';
+import { SignalRService } from './signalr.service';
 
-export type MessageHubState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed';
+/** someone started / stopped typing in the chat of a report */
+export interface TypingEvent {
+  reportId: string;
+  userId: string;
+}
 
 /**
- * The SignalR connection of the chat of ONE report (the server joins the connection to the group of the report
- * named by the `reportId` query param). It is not a root service: the chat provides its own, so the connection
- * lives and dies with the chat.
+ * The chat of the reports on the shared SignalR connection. The chat of a report is a group (named after the report)
+ * of the connection: it is joined when the chat opens and left when it closes, the connection itself stays open.
+ * Only one chat is open at a time, so only one group is joined at a time.
  *
- * server -> client: ReceiveMessage(message), NotifyTyping(userId), NotifyStoppedTyping(userId)
- * client -> server: SendMessage(content), NotifyTyping(), NotifyStoppedTyping()
+ * server -> client: ReceiveMessage(message), NotifyTyping(reportId, userId), NotifyStoppedTyping(reportId, userId)
+ * client -> server: AddToGroup(reportId), RemoveFromGroup(reportId), SendMessage(reportId, content),
+ *                   NotifyTyping(reportId), NotifyStoppedTyping(reportId)
  */
-@Injectable()
-export class MessageHubService implements OnDestroy {
+@Injectable({ providedIn: 'root' })
+export class MessageHubService {
   // DI
-  private readonly authService = inject(AuthService);
+  private readonly signalR = inject(SignalRService);
 
-  // Hub connection
-  private connection: signalR.HubConnection | null = null;
+  // Hub connection (shared)
+  private readonly connection = this.signalR.connection;
 
   // state
-  private readonly _state = signal<MessageHubState>('idle');
-  readonly state = this._state.asReadonly();
+  readonly state = this.signalR.state;
+
+  /** the report whose group this connection should be in (null when no chat is open) */
+  private currentGroup: string | null = null;
 
   // Observables
-  /** a message was sent to the chat (also the ones this user sent: the server sends them to everyone in the chat) */
+  /** a message was sent to the chat this user joined (also the ones this user sent: the server sends them to everyone in the chat) */
   readonly onMessageReceived$ = new Subject<MessageDTO>();
 
-  /** someone else started typing (their user id) */
-  readonly onTyping$ = new Subject<string>();
+  /** someone else started typing */
+  readonly onTyping$ = new Subject<TypingEvent>();
 
-  /** someone else stopped typing (their user id) */
-  readonly onStoppedTyping$ = new Subject<string>();
+  /** someone else stopped typing */
+  readonly onStoppedTyping$ = new Subject<TypingEvent>();
 
-  /** the connection came back after it was lost: what was sent in between is lost, the listener should load it again */
+  /** the connection came back after it was lost (the chat is joined again): what was sent in between is lost, the listener should load it again */
   readonly onReconnected$ = new Subject<void>();
+
+  constructor() {
+    this.connection.on('ReceiveMessage', (message: MessageDTO) => this.onMessageReceived$.next(message));
+    this.connection.on('NotifyTyping', (reportId: string, userId: string) => this.onTyping$.next({ reportId, userId }));
+    this.connection.on('NotifyStoppedTyping', (reportId: string, userId: string) =>
+      this.onStoppedTyping$.next({ reportId, userId }),
+    );
+
+    // a lost connection comes back as a NEW connection, which is in no group: the chat is joined again, and only then
+    // the listener is told (so what it loads is not missed between the load and the join)
+    this.signalR.onReconnected$.subscribe(async () => {
+      if (this.currentGroup) await this.addToGroup(this.currentGroup);
+
+      this.onReconnected$.next();
+    });
+  }
 
   // methods
 
-  /** Connects to the chat of the report (the one before is closed). `state` says how it went, it does not throw. */
-  async start(reportId: string): Promise<void> {
-    await this.stop();
+  /** connects the shared connection again after it failed (it does nothing when it is already up) */
+  start(): Promise<void> {
+    return this.signalR.start();
+  }
 
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${URLs.messageHub}?reportId=${encodeURIComponent(reportId)}`, { withCredentials: true })
-      // right away, then after 2s, 5s, 10s, 30s and 60s, then it gives up (onclose)
-      .withAutomaticReconnect([0, 2_000, 5_000, 10_000, 30_000, 60_000])
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
+  /**
+   * Starts receiving the messages and the typing of the report (the one joined before is not left: call `leaveReport` first).
+   * It waits for the connection if it is still connecting, and it is joined again after a reconnect. Never throws.
+   */
+  async joinReport(reportId: string): Promise<void> {
+    this.currentGroup = reportId;
 
-    this.registerHandlers(connection);
-    this.connection = connection;
-    this._state.set('connecting');
+    await this.signalR.start();
+
+    // the chat was closed or changed while it was connecting
+    if (this.currentGroup !== reportId) return;
+
+    await this.addToGroup(reportId);
+  }
+
+  /** Stops receiving the report (the chat was closed). Never throws. */
+  async leaveReport(reportId: string): Promise<void> {
+    if (this.currentGroup === reportId) this.currentGroup = null;
 
     try {
-      await this.startWithRefresh(connection);
-      if (this.connection === connection) this._state.set('connected');
+      await this.connection.invoke('RemoveFromGroup', reportId);
     } catch {
-      // stop was called while it was connecting, that is not a failure
-      if (this.connection !== connection) return;
-
-      this.connection = null;
-      this._state.set('failed');
+      // nothing to do: the connection is down, and its groups are gone with it
     }
   }
 
-  async stop(): Promise<void> {
-    const connection = this.connection;
-    this.connection = null;
-    this._state.set('idle');
-
-    if (!connection) return;
-
-    try {
-      await connection.stop();
-    } catch {
-      // nothing to do, the connection is closed or the page is closing
-    }
+  /** Sends a message to the chat of the report. Rejects when the connection is not up, or when the server refuses it. */
+  sendMessage(reportId: string, content: string): Promise<void> {
+    return this.connection.invoke('SendMessage', reportId, content);
   }
 
-  /** Sends a message to the chat. Rejects when the connection is not up, or when the server refuses it. */
-  async sendMessage(content: string): Promise<void> {
-    if (!this.connection || this._state() !== 'connected') throw new Error('not connected');
-
-    await this.connection.invoke('SendMessage', content);
+  /** tells the others in the chat that this user is typing (fire and forget, a failure is not worth a message) */
+  notifyTyping(reportId: string): void {
+    this.connection.send('NotifyTyping', reportId).catch(() => {});
   }
 
-  /** tells the others this user is typing (fire and forget, a failure is not worth a message) */
-  notifyTyping(): void {
-    this.fireAndForget('NotifyTyping');
-  }
-
-  notifyStoppedTyping(): void {
-    this.fireAndForget('NotifyStoppedTyping');
-  }
-
-  ngOnDestroy(): void {
-    void this.stop();
+  notifyStoppedTyping(reportId: string): void {
+    this.connection.send('NotifyStoppedTyping', reportId).catch(() => {});
   }
 
   // private
 
-  private fireAndForget(method: string): void {
-    if (!this.connection || this._state() !== 'connected') return;
-
-    this.connection.send(method).catch(() => {});
-  }
-
-  /**
-   * The hub does not go through the http interceptors, so an expired access token is not refreshed for it.
-   * If the first try fails, the token is refreshed by hand and it tries once more (a real failure fails again).
-   */
-  private async startWithRefresh(connection: signalR.HubConnection): Promise<void> {
+  private async addToGroup(reportId: string): Promise<void> {
     try {
-      await connection.start();
-    } catch (error) {
-      // stop closed it while it was connecting, do not connect again
-      if (this.connection !== connection) throw error;
-
-      await firstValueFrom(this.authService.refresh());
-      await connection.start();
+      await this.connection.invoke('AddToGroup', reportId);
+    } catch {
+      // the connection is down (the reconnect joins again) or the report is gone, the chat just gets no live messages
     }
-  }
-
-  private registerHandlers(connection: signalR.HubConnection): void {
-    connection.on('ReceiveMessage', (message: MessageDTO) => this.onMessageReceived$.next(message));
-    connection.on('NotifyTyping', (userId: string) => this.onTyping$.next(userId));
-    connection.on('NotifyStoppedTyping', (userId: string) => this.onStoppedTyping$.next(userId));
-
-    connection.onreconnecting(() => {
-      if (this.connection === connection) this._state.set('reconnecting');
-    });
-
-    connection.onreconnected(() => {
-      if (this.connection !== connection) return;
-
-      this._state.set('connected');
-      this.onReconnected$.next();
-    });
-
-    // `error` is only set when the connection was lost (and the reconnects gave up), not when stop closed it
-    connection.onclose((error) => {
-      if (!error || this.connection !== connection) return;
-
-      this.connection = null;
-      this._state.set('failed');
-    });
   }
 }

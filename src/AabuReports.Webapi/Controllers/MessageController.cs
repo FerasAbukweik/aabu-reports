@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AabuReports.Webapi.Controllers;
 
-/// <summary> the old messages of a report's chat (new ones arrive live through the MessageHub) </summary>
+/// <summary> the old messages of a report's chat (new ones arrive live through the AppHub) </summary>
 [Authorize]
 public class MessageController(IMessageService messageService) : ApiControllerBase
 {

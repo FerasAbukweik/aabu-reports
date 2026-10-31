@@ -1,9 +1,9 @@
-import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
-import { defer, EMPTY, finalize, Observable, Subscription, tap } from 'rxjs';
+import { inject, Injectable, signal } from '@angular/core';
+import { defer, EMPTY, finalize, Observable, tap } from 'rxjs';
 import { MessageDTO, messageKey } from '../../DTOs/message/message-dto';
 import { toastError } from '../../utils/error-toast';
 import { MessageApiService } from '../api/message-api.service';
-import { MessageHubService } from '../hubs/message-hub.service';
+import { MessageHubService, TypingEvent } from '../hubs/message-hub.service';
 import { ToastService } from '../local/toast.service';
 import { AuthService } from './auth.service';
 
@@ -17,12 +17,31 @@ const TYPING_IDLE_MS = 2_000;
 /** someone else's "typing..." goes away after this long without news (the "stopped" message can get lost) */
 const TYPING_EXPIRE_MS = 6_000;
 
+/** how the loading of the pages of ONE report is going */
+interface PageState {
+  /** a page is loading */
+  isLoading: boolean;
+  /** the api returns no total, so a full page means there may be more (a short or empty page stops it) */
+  isMoreAvailable: boolean;
+}
+
+const INITIAL_PAGE_STATE: PageState = { isLoading: false, isMoreAvailable: true };
+const NO_MESSAGES: readonly MessageDTO[] = [];
+const NO_IDS: readonly string[] = [];
+
+/** the key of a report in the maps (the case of a guid is not the same everywhere) */
+const toKey = (reportId: string) => reportId.toLowerCase();
+
 /**
- * The state of the chat of ONE report: the old messages (lazy loaded, newest first from the api), the live ones from
- * the hub, and who is typing. It is not a root service: the chat component provides its own, together with the hub.
+ * The messages of the reports. It does not know which report is open: every method takes the report id, and the
+ * caller (the chat) decides which report it shows.
+ *
+ * What `loadMore` loads (and the live messages of the joined chat) is cached by report id and never cleared, so
+ * coming back to a report shows what was loaded without loading it again.
+ * The readers (`messages`, `isLoading`, ...) read signals, so they can be used inside `computed` and templates.
  */
-@Injectable()
-export class MessageService implements OnDestroy {
+@Injectable({ providedIn: 'root' })
+export class MessageService {
   // DI
   private messageApi = inject(MessageApiService);
   private hub = inject(MessageHubService);
@@ -31,47 +50,34 @@ export class MessageService implements OnDestroy {
 
   // state
 
-  /** the loaded messages, OLDEST first (the order of the screen) */
-  private readonly _messages = signal<readonly MessageDTO[]>([]);
-  public readonly messages = this._messages.asReadonly();
+  /** report id -> its loaded messages, OLDEST first (the order of the screen) */
+  private readonly messagesByReport = signal<ReadonlyMap<string, readonly MessageDTO[]>>(new Map());
 
-  /** a page is loading */
-  private readonly _isLoading = signal(false);
-  public readonly isLoading = this._isLoading.asReadonly();
+  /** report id -> how its pages are loading */
+  private readonly pageStates = signal<ReadonlyMap<string, PageState>>(new Map());
 
-  /** the api returns no total, so a full page means there may be more (a short or empty page stops it) */
-  private readonly _isMoreAvailable = signal(true);
-  public readonly isMoreAvailable = this._isMoreAvailable.asReadonly();
-
-  /** the last page failed to load: the sentinel stops asking, the user retries by hand */
-  private readonly _hasLoadFailed = signal(false);
-  public readonly hasLoadFailed = this._hasLoadFailed.asReadonly();
-
-  /** the first page was answered (loaded or failed): before it the chat shows its skeleton */
-  private readonly _isFirstPageDone = signal(false);
-  public readonly isFirstPageDone = this._isFirstPageDone.asReadonly();
+  /** report id -> the ids of the others who are typing in its chat right now */
+  private readonly typingByReport = signal<ReadonlyMap<string, readonly string[]>>(new Map());
 
   /** the state of the live connection */
   public readonly connectionState = this.hub.state;
 
-  /** the names of the others who are typing right now */
-  private readonly typingUserIds = signal<readonly string[]>([]);
-  public readonly typingNames = computed(() => {
-    const messages = this._messages();
-
-    return this.typingUserIds().map((id) => messages.find((m) => m.senderId === id)?.senderName ?? 'مستخدم');
-  });
-
-  private reportId: string | null = null;
-  private subscriptions = new Subscription();
-
-  // typing
-  private isTypingSent = false;
+  // typing (what this user sends)
+  private typingSentFor: string | null = null;
   private lastTypingSentAt = 0;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** `${reportId}|${userId}` -> the timer that removes someone else's "typing..." */
   private readonly expireTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  // methods
+  constructor() {
+    // the service lives as long as the app, so it listens for good (the hub only sends the chat that is joined)
+    this.hub.onMessageReceived$.subscribe((message) => this.addMissing(message.reportId, [message]));
+    this.hub.onTyping$.subscribe((event) => this.someoneTyping(event));
+    this.hub.onStoppedTyping$.subscribe((event) => this.someoneStopped(event));
+  }
+
+  // readers
 
   /** the logged in user, to know which messages are their own */
   public isOwn(message: MessageDTO): boolean {
@@ -80,104 +86,92 @@ export class MessageService implements OnDestroy {
     return !!me && message.senderId.toLowerCase() === me.toLowerCase();
   }
 
-  /**
-   * Opens the chat of a report: connects to the hub and loads the first page of the old messages.
-   * Opening again (another report) closes the one before and clears the state.
-   */
-  public open(reportId: string): void {
-    this.close();
-    this.reportId = reportId;
+  /** the loaded messages of the report, OLDEST first */
+  public messages(reportId: string): readonly MessageDTO[] {
+    return this.messagesByReport().get(toKey(reportId)) ?? NO_MESSAGES;
+  }
 
-    this.subscriptions.add(
-      this.hub.onMessageReceived$.subscribe((message) => {
-        // the hub of this chat only sends its own report, this is just a guard
-        if (message.reportId.toLowerCase() === reportId.toLowerCase()) this.addMissing([message]);
-      }),
+  /** a page of the report is loading */
+  public isLoading(reportId: string): boolean {
+    return this.pageState(reportId).isLoading;
+  }
+
+  /** the report may have older messages */
+  public isMoreAvailable(reportId: string): boolean {
+    return this.pageState(reportId).isMoreAvailable;
+  }
+
+  /** the names of the others who are typing right now in the chat of the report */
+  public typingNames(reportId: string): string[] {
+    const messages = this.messages(reportId);
+
+    return (this.typingByReport().get(toKey(reportId)) ?? NO_IDS).map(
+      (id) => messages.find((m) => m.senderId === id)?.senderName ?? 'مستخدم',
     );
-    this.subscriptions.add(this.hub.onReconnected$.subscribe(() => this.refreshAfterReconnect()));
-    this.subscriptions.add(this.hub.onTyping$.subscribe((id) => this.someoneTyping(id)));
-    this.subscriptions.add(this.hub.onStoppedTyping$.subscribe((id) => this.someoneStopped(id)));
-
-    void this.hub.start(reportId);
-
-    this.loadMore().subscribe({ error: () => {} }); // already shown as a toast
   }
 
-  /** the connection failed or was lost for good: connects again */
-  public reconnect(): void {
-    if (!this.reportId) return;
-
-    void this.hub.start(this.reportId).then(() => {
-      if (this.hub.state() === 'connected') this.refreshAfterReconnect();
-    });
-  }
-
-  /** Disconnects and clears the state (the chat is closed or another report is opened). */
-  public close(): void {
-    this.subscriptions.unsubscribe();
-    this.subscriptions = new Subscription();
-
-    this.clearTypingTimers();
-    this.reportId = null;
-
-    void this.hub.stop();
-
-    this._messages.set([]);
-    this._isLoading.set(false);
-    this._isMoreAvailable.set(true);
-    this._hasLoadFailed.set(false);
-    this._isFirstPageDone.set(false);
-    this.typingUserIds.set([]);
-  }
+  // methods
 
   /**
-   * Loads the next (older) page of the chat (GET /message) and adds it to the top of `messages`.
-   * Does nothing when there is no more, or a page is already loading.
-   * A call after a failure is a retry (the failed flag is cleared when it starts).
-   * On failure it shows an error toast and rethrows the error.
+   * Loads the next (older) page of the report (GET /message) and adds it to the top of its messages.
+   * The first call loads the first page. Does nothing when there is no more, or a page is already loading.
+   * A call after a failure is a retry.
+   * On failure it shows an error toast and rethrows the error (the caller keeps track of the failure).
    */
-  public loadMore(): Observable<readonly MessageDTO[]> {
+  public loadMore(reportId: string): Observable<readonly MessageDTO[]> {
+    const id = toKey(reportId);
+
     // defer: the state is set when the request is subscribed, not when this method is called
     return defer(() => {
-      const reportId = this.reportId;
-      if (!reportId || !this._isMoreAvailable() || this._isLoading()) return EMPTY;
+      const state = this.pageState(id);
+      if (!state.isMoreAvailable || state.isLoading) return EMPTY;
 
-      this._hasLoadFailed.set(false);
-      this._isLoading.set(true);
+      this.setPageState(id, { isLoading: true });
 
       // the messages already loaded (the live ones too) are the newest ones, so they are the ones taken
-      const taken = this._messages().length;
+      const taken = this.messages(id).length;
 
-      return this.messageApi.getByReport(reportId, { taken, sectionSize: MESSAGES_PAGE_SIZE }).pipe(
+      return this.messageApi.getByReport(id, { taken, sectionSize: MESSAGES_PAGE_SIZE }).pipe(
         tap((page) => {
-          // the chat was closed or changed while the page was on its way
-          if (this.reportId !== reportId) return;
-
-          this.addMissing(page);
-          this._isMoreAvailable.set(page.length === MESSAGES_PAGE_SIZE);
+          this.addMissing(id, page);
+          this.setPageState(id, { isMoreAvailable: page.length === MESSAGES_PAGE_SIZE });
         }),
-        finalize(() => {
-          if (this.reportId !== reportId) return;
-
-          this._isLoading.set(false);
-          this._isFirstPageDone.set(true);
-        }),
-        tap({ error: () => this.reportId === reportId && this._hasLoadFailed.set(true) }),
+        finalize(() => this.setPageState(id, { isLoading: false })),
         toastError(this.toast, 'تعذر تحميل المراسلات'),
       );
     });
   }
 
+  /** the chat of the report was opened: starts receiving its live messages and typing (the connection stays open) */
+  public join(reportId: string): Promise<void> {
+    return this.hub.joinReport(toKey(reportId));
+  }
+
+  /** the chat of the report was closed: stops receiving it (its messages stay) */
+  public leave(reportId: string): Promise<void> {
+    const id = toKey(reportId);
+
+    this.stopTyping();
+    this.clearTyping(id);
+
+    return this.hub.leaveReport(id);
+  }
+
+  /** the connection failed or was lost for good: connects again (the joined chat is joined again when it is up) */
+  public reconnect(): void {
+    void this.hub.start();
+  }
+
   /**
-   * Sends a message to the chat through the hub. It is NOT added here: the server sends it back to everyone in the
-   * chat (this user too), and it is added then. Resolves true when the server took it.
+   * Sends a message to the chat of the report through the hub. It is NOT added here: the server sends it back to
+   * everyone in the chat (this user too), and it is added then. Resolves true when the server took it.
    * On failure it shows an error toast and resolves false.
    */
-  public async send(content: string): Promise<boolean> {
+  public async send(reportId: string, content: string): Promise<boolean> {
     this.stopTyping();
 
     try {
-      await this.hub.sendMessage(content);
+      await this.hub.sendMessage(toKey(reportId), content);
       return true;
     } catch {
       this.toast.error('تعذر إرسال الرسالة', 'تحقق من اتصالك وحاول مرة أخرى');
@@ -186,88 +180,120 @@ export class MessageService implements OnDestroy {
   }
 
   /** the text of the box changed: tells the others that the user is typing (and that they stopped, after a pause) */
-  public draftChanged(text: string): void {
+  public draftChanged(reportId: string, text: string): void {
+    const id = toKey(reportId);
+
     if (!text.trim()) {
       this.stopTyping();
       return;
     }
 
+    // the box of another report was being typed in: that one stopped
+    if (this.typingSentFor !== id) this.stopTyping();
+
     const now = Date.now();
-    if (!this.isTypingSent || now - this.lastTypingSentAt > TYPING_RESEND_MS) {
-      this.isTypingSent = true;
+    if (this.typingSentFor === null || now - this.lastTypingSentAt > TYPING_RESEND_MS) {
+      this.typingSentFor = id;
       this.lastTypingSentAt = now;
-      this.hub.notifyTyping();
+      this.hub.notifyTyping(id);
     }
 
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => this.stopTyping(), TYPING_IDLE_MS);
   }
 
-  ngOnDestroy(): void {
-    this.stopTyping();
-    this.close();
-  }
-
   // private
 
+  private pageState(reportId: string): PageState {
+    return this.pageStates().get(toKey(reportId)) ?? INITIAL_PAGE_STATE;
+  }
+
+  private setPageState(reportId: string, changes: Partial<PageState>): void {
+    const id = toKey(reportId);
+
+    this.pageStates.update((map) => new Map(map).set(id, { ...(map.get(id) ?? INITIAL_PAGE_STATE), ...changes }));
+  }
+
+  /** adds the messages of a report that are not in its list yet, and keeps it oldest first */
+  private addMissing(reportId: string, incoming: readonly MessageDTO[]): void {
+    const id = toKey(reportId);
+
+    this.messagesByReport.update((map) => {
+      const list = map.get(id) ?? NO_MESSAGES;
+      const keys = new Set(list.map(messageKey));
+      const missing = incoming.filter((m) => !keys.has(messageKey(m)));
+      if (missing.length === 0) return map;
+
+      // by the time, not by the text: the api trims the zeros of the fraction, so "…12.5Z" and "…12.45Z" do not sort as text
+      const merged = [...list, ...missing].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+
+      return new Map(map).set(id, merged);
+    });
+  }
+
+  // typing
+
+  /** this user stopped typing: tells the others (if they were told that this user is typing) */
   private stopTyping(): void {
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = null;
 
-    if (!this.isTypingSent) return;
+    if (this.typingSentFor === null) return;
 
-    this.isTypingSent = false;
-    this.hub.notifyStoppedTyping();
+    this.hub.notifyStoppedTyping(this.typingSentFor);
+    this.typingSentFor = null;
   }
 
-  private someoneTyping(userId: string): void {
-    this.typingUserIds.update((ids) => (ids.includes(userId) ? ids : [...ids, userId]));
+  private someoneTyping(event: TypingEvent): void {
+    const id = toKey(event.reportId);
+    const timerKey = `${id}|${event.userId}`;
 
-    clearTimeout(this.expireTimers.get(userId));
+    this.typingByReport.update((map) => {
+      const ids = map.get(id) ?? NO_IDS;
+
+      return ids.includes(event.userId) ? map : new Map(map).set(id, [...ids, event.userId]);
+    });
+
+    clearTimeout(this.expireTimers.get(timerKey));
     this.expireTimers.set(
-      userId,
-      setTimeout(() => this.someoneStopped(userId), TYPING_EXPIRE_MS),
+      timerKey,
+      setTimeout(() => this.someoneStopped(event), TYPING_EXPIRE_MS),
     );
   }
 
-  private someoneStopped(userId: string): void {
-    clearTimeout(this.expireTimers.get(userId));
-    this.expireTimers.delete(userId);
+  private someoneStopped(event: TypingEvent): void {
+    const id = toKey(event.reportId);
+    const timerKey = `${id}|${event.userId}`;
 
-    this.typingUserIds.update((ids) => ids.filter((id) => id !== userId));
-  }
+    clearTimeout(this.expireTimers.get(timerKey));
+    this.expireTimers.delete(timerKey);
 
-  private clearTypingTimers(): void {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    this.idleTimer = null;
-    this.isTypingSent = false;
+    this.typingByReport.update((map) => {
+      const ids = map.get(id) ?? NO_IDS;
+      if (!ids.includes(event.userId)) return map;
 
-    this.expireTimers.forEach((timer) => clearTimeout(timer));
-    this.expireTimers.clear();
-  }
-
-  /** the connection was lost for a while: load what was missed (the newest page), without touching the rest */
-  private refreshAfterReconnect(): void {
-    const reportId = this.reportId;
-    if (!reportId) return;
-
-    this.messageApi.getByReport(reportId, { taken: 0, sectionSize: MESSAGES_PAGE_SIZE }).subscribe({
-      next: (page) => {
-        if (this.reportId === reportId) this.addMissing(page);
-      },
-      error: () => {}, // no toast, the old messages stay on the screen
+      return new Map(map).set(id, ids.filter((userId) => userId !== event.userId));
     });
   }
 
-  /** adds the messages that are not in the list yet, and keeps it oldest first */
-  private addMissing(incoming: readonly MessageDTO[]): void {
-    this._messages.update((list) => {
-      const keys = new Set(list.map(messageKey));
-      const missing = incoming.filter((m) => !keys.has(messageKey(m)));
-      if (missing.length === 0) return list;
+  /** nobody is typing in the chat of the report (it was closed, so it will not say that they stopped) */
+  private clearTyping(reportId: string): void {
+    const prefix = `${reportId}|`;
 
-      // by the time, not by the text: the api trims the zeros of the fraction, so "…12.5Z" and "…12.45Z" do not sort as text
-      return [...list, ...missing].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+    for (const [key, timer] of this.expireTimers) {
+      if (!key.startsWith(prefix)) continue;
+
+      clearTimeout(timer);
+      this.expireTimers.delete(key);
+    }
+
+    this.typingByReport.update((map) => {
+      if (!map.has(reportId)) return map;
+
+      const next = new Map(map);
+      next.delete(reportId);
+
+      return next;
     });
   }
 }

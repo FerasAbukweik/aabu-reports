@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { finalize, Observable, tap } from 'rxjs';
+import { defer, finalize, Observable, of, tap } from 'rxjs';
 import { MaintenanceStatsDTO } from '../../DTOs/report/maintenance-stats-dto';
 import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { ReportApiService } from '../api/report-api.service';
@@ -25,16 +25,23 @@ export class MaintenanceStatsService {
 
   /**
    * Loads the stats (GET /report/stats) into the `stats` signal.
+   * If they were loaded before they are given as they are, nothing is requested again.
    * On failure it shows an error toast and rethrows the error.
    */
   public load(): Observable<MaintenanceStatsDTO> {
-    this._loading.set(true);
+    // defer: the state is read when the request is subscribed, not when this method is called
+    return defer(() => {
+      const loaded = this._stats();
+      if (loaded) return of(loaded);
 
-    return this.reportApi.getStats().pipe(
-      tap((stats) => this._stats.set(stats)),
-      finalize(() => this._loading.set(false)),
-      toastError(this.toast, 'تعذر تحميل إحصائيات الصيانة', (e) => this.errorMessage(e)),
-    );
+      this._loading.set(true);
+
+      return this.reportApi.getStats().pipe(
+        tap((stats) => this._stats.set(stats)),
+        finalize(() => this._loading.set(false)),
+        toastError(this.toast, 'تعذر تحميل إحصائيات الصيانة', (e) => this.errorMessage(e)),
+      );
+    });
   }
 
   // private

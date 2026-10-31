@@ -42,49 +42,27 @@
   </div>
 
   <!-- Stats -->
-  <app-stat-cards [cards]="statCards()" ariaLabel="إحصائيات البلاغات والصيانة" />
+  <app-history-stats [isAdmin]="isAdmin" />
 
-  <!-- Search + filters -->
+  <!-- Search + filters: the bar owns the filters and says them when they are applied -->
   <app-search-filter-bar
-    [query]="query()"
-    (queryChange)="onQueryChange($event)"
-    [values]="filterValues()"
-    (valuesChange)="onValuesChange($event)"
-    [filters]="filters"
-    [resultsLabel]="resultsLabel()"
-    [showApply]="true"
-    [applyDisabled]="!hasUnappliedChanges() || isLoading()"
-    (applied)="applyFilters()"
-    (filtersReset)="onFiltersReset()"
-    searchLabel="البحث في البلاغات"
-    placeholder="بحث في كل بلاغاتك: رقم البلاغ (#3F2A9C1E) أو المكان أو وصف العطل..."
+    [resultsCount]="reports().length"
+    [isLoading]="isLoading()"
+    (applied)="onFilterApplied($event)"
   />
 
   <!-- Table -->
   <app-reports-table
-    [rows]="rows()"
+    [reports]="reports()"
     [page]="page()"
-    [totalPages]="totalPages()"
+    [pageSize]="pageSize"
+    [total]="total()"
+    [isFiltered]="isFiltered()"
     [isLoading]="isLoading()"
     [hasFailed]="hasLoadFailed()"
-    [footerLabel]="footerLabel()"
-    [emptyMessage]="emptyMessage()"
+    [isAdmin]="isAdmin"
     (pageChange)="goToPage($event)"
     (retryRequested)="retry()"
-    (rateRequested)="openRating($event)"
-    [isAdmin]="isAdmin"
-    (stateChangeRequested)="openStateChange($event)"
-    (deleteRequested)="openDelete($event)"
+    (reportDeleted)="onReportDeleted()"
   />
 </div>
-
-<app-report-rating-modal [row]="liveRatingRow()" (closed)="ratingRow.set(null)" />
-
-@if (isAdmin) {
-  <app-report-state-modal [row]="liveStateRow()" (closed)="stateRow.set(null)" />
-  <app-report-delete-modal
-    [row]="deleteRow()"
-    (closed)="deleteRow.set(null)"
-    (deleted)="onReportDeleted()"
-  />
-}

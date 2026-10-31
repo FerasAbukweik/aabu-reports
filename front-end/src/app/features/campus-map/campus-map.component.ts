@@ -129,9 +129,16 @@ export class CampusMapComponent {
     return !!id && !!this.mapReportsService.isLocationReportsLoading()[id];
   });
 
+  /**
+   * the last page of the location failed to load, the key is the location id. The inspector asks for pages itself
+   * when its sentinel is on the screen, and the sentinel comes back after every request, so without this it would
+   * ask again and again: the user retries by hand.
+   */
+  private readonly failedLocationIds = signal<ReadonlySet<string>>(new Set());
+
   protected readonly hasLocationReportsFailed = computed(() => {
     const id = this.mapSelection.selectedLocationId();
-    return !!id && !!this.mapReportsService.locationReportsFailed()[id];
+    return !!id && this.failedLocationIds().has(id);
   });
 
   protected readonly isMoreLocationReportsAvailable = computed(() => {
@@ -179,11 +186,26 @@ export class CampusMapComponent {
     const locationId = this.mapSelection.selectedLocationId();
     if (!locationId) return;
 
+    // a call after a failure is a retry
+    this.setLocationFailed(locationId, false);
+
     this.mapReportsService
       .loadMoreLocationReports(locationId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       // MapReportsService already shows the error toast
-      .subscribe({ error: () => {} });
+      .subscribe({ error: () => this.setLocationFailed(locationId, true) });
+  }
+
+  private setLocationFailed(locationId: string, hasFailed: boolean): void {
+    this.failedLocationIds.update((ids) => {
+      if (ids.has(locationId) === hasFailed) return ids;
+
+      const next = new Set(ids);
+      if (hasFailed) next.add(locationId);
+      else next.delete(locationId);
+
+      return next;
+    });
   }
 
   /** the location the report dialog is open for, null keeps it closed */

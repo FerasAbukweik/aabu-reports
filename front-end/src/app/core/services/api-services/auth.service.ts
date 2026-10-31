@@ -21,6 +21,8 @@ export class AuthService {
   private readonly _currentUser = signal<MeDTO | null>(null);
   public readonly currentUser = this._currentUser.asReadonly();
 
+  private _studentId = '';
+
   public readonly isLoggedIn = computed(() => this._currentUser() !== null);
 
   constructor() {
@@ -31,20 +33,23 @@ export class AuthService {
 
   /** Validates credentials and sends an email code; authentication completes after verification. */
   public login(loginDTO: LoginDTO): Observable<unknown> {
-    return this.authApi
-      .login({ ...loginDTO, studentId: loginDTO.studentId.trim() })
-      .pipe(toastError(this.toast, 'تعذر تسجيل الدخول', (e) => this.loginErrorMessage(e)));
+    return this.authApi.login({ ...loginDTO, studentId: loginDTO.studentId.trim() }).pipe(
+      toastError(this.toast, 'تعذر تسجيل الدخول', (e) => this.loginErrorMessage(e)),
+      tap({ next: () => (this._studentId = loginDTO.studentId.trim()) }),
+    );
   }
 
-  public verifyEmail(studentId: string, code: string): Observable<MeDTO> {
-    return this.authApi.verifyEmail(studentId, code).pipe(
+  public verifyEmail(code: string): Observable<MeDTO> {
+    return this.authApi.verifyEmail(this._studentId, code).pipe(
       toastError(this.toast, 'تعذر التحقق من الرمز'),
       switchMap(() => this.loadCurrentUser()),
     );
   }
 
-  public resendCode(studentId: string): Observable<unknown> {
-    return this.authApi.resendCode(studentId).pipe(toastError(this.toast, 'تعذر إرسال رمز جديد'));
+  public resendCode(): Observable<unknown> {
+    return this.authApi
+      .resendCode(this._studentId)
+      .pipe(toastError(this.toast, 'تعذر إرسال رمز جديد'));
   }
 
   /** Loads the authenticated user after verification or when restoring a session. */

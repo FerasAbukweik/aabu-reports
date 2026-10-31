@@ -4,8 +4,7 @@ using AabuReports.Webapi.ExtensionMethods;
 using AabuReports.Webapi.Hubs;
 using AabuReports.Webapi.Middlewares;
 using AabuReports.Webapi;
-using AabuReports.Webapi.Hubs.MessagesHub;
-using AabuReports.Webapi.Hubs.NotificationHub;
+using AabuReports.Webapi.Hubs.AppHub;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -44,8 +43,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notification");
-app.MapHub<MessageHub>("/hubs/message");
+app.MapHub<AppHub>("/hubs/app");
 
 await app.Services.SeedAdminAsync(app.Configuration);
 

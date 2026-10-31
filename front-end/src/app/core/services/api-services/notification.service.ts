@@ -38,13 +38,6 @@ export class NotificationService {
   private readonly _isMoreAvailable = signal(true);
   public readonly isMoreAvailable = this._isMoreAvailable.asReadonly();
 
-  /**
-   * the last page failed to load. The list asks for pages itself when its sentinel is on the screen, and the
-   * sentinel comes back after every request, so without this it would ask again and again: the user retries by hand.
-   */
-  private readonly _hasLoadFailed = signal(false);
-  public readonly hasLoadFailed = this._hasLoadFailed.asReadonly();
-
   private isStarted = false;
   private hubSubscriptions = new Subscription();
 
@@ -87,15 +80,14 @@ export class NotificationService {
    * Loads the next page of the notifications of the current user (GET /notification) and adds it to
    * the end of `notifications`. The first call loads the first page.
    * Does nothing when there is no more, or a page is already loading.
-   * A call after a failure is a retry (the failed flag is cleared when it starts).
-   * On failure it shows an error toast and rethrows the error.
+   * A call after a failure is a retry.
+   * On failure it shows an error toast and rethrows the error (the caller keeps track of the failure).
    */
   public loadMore(): Observable<readonly NotificationDTO[]> {
     // defer: the state is set when the request is subscribed, not when this method is called
     return defer(() => {
       if (!this._isMoreAvailable() || this._isLoading()) return EMPTY;
 
-      this._hasLoadFailed.set(false);
       this._isLoading.set(true);
 
       // the notifications already loaded are the ones taken
@@ -107,7 +99,6 @@ export class NotificationService {
           this._isMoreAvailable.set(page.length === NOTIFICATIONS_PAGE_SIZE);
         }),
         finalize(() => this._isLoading.set(false)),
-        tap({ error: () => this._hasLoadFailed.set(true) }),
         toastError(this.toast, 'تعذر تحميل الإشعارات'),
       );
     });
@@ -191,6 +182,5 @@ export class NotificationService {
     this._unreadCount.set(0);
     this._isLoading.set(false);
     this._isMoreAvailable.set(true);
-    this._hasLoadFailed.set(false);
   }
 }

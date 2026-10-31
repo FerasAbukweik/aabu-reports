@@ -52,7 +52,6 @@ export class LoginSignupComponent {
   readonly loginState = signal<SubmitState>('idle');
   readonly registerState = signal<SubmitState>('idle');
   readonly verificationTab = signal<AuthTab | null>(null);
-  private verificationStudentId = '';
   readonly verificationNoticeOpen = signal(false);
   readonly verificationState = signal<SubmitState>('idle');
   readonly resending = signal(false);
@@ -100,7 +99,6 @@ export class LoginSignupComponent {
     if (tab === this.activeTab()) return;
     if (this.loginState() !== 'idle' || this.registerState() !== 'idle' || this.resending()) return;
     this.verificationTab.set(null);
-    this.verificationStudentId = '';
     this.verificationNoticeOpen.set(false);
     this.verificationError.set(null);
     this.otp()?.clear();
@@ -211,7 +209,6 @@ export class LoginSignupComponent {
   private beginVerification(tab: AuthTab, studentId: string): void {
     this.verificationError.set(null);
     this.verificationTab.set(tab);
-    this.verificationStudentId = studentId.trim();
     this.otp()?.clear();
     this.otp()?.restartTimer();
     this.verificationNoticeOpen.set(true);
@@ -230,7 +227,7 @@ export class LoginSignupComponent {
     this.verificationError.set(null);
     this.resending.set(true);
     this._authService
-      .resendCode(this.verificationStudentId)
+      .resendCode()
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {
@@ -257,7 +254,7 @@ export class LoginSignupComponent {
     this.verificationState.set('loading');
     this.submitState(tab).set('loading');
     this._authService
-      .verifyEmail(this.verificationStudentId, code)
+      .verifyEmail(code)
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {

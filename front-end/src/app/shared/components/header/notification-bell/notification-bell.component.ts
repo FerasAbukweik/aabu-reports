@@ -36,7 +36,12 @@ export class NotificationBellComponent {
   protected readonly unreadCount = this.notificationService.unreadCount;
   protected readonly isLoading = this.notificationService.isLoading;
   protected readonly isMoreAvailable = this.notificationService.isMoreAvailable;
-  protected readonly hasLoadFailed = this.notificationService.hasLoadFailed;
+
+  /**
+   * the last page failed to load. The list asks for pages itself when its sentinel is on the screen, and the
+   * sentinel comes back after every request, so without this it would ask again and again: the user retries by hand.
+   */
+  protected readonly hasLoadFailed = signal(false);
 
   /** the "mark all as seen" request is on its way (the list waits for it, so the pages it loads are already marked) */
   protected readonly isMarkingAsRead = signal(false);
@@ -92,7 +97,11 @@ export class NotificationBellComponent {
   protected loadMore(): void {
     if (!this.isOpen()) return;
 
-    this.notificationService.loadMore().subscribe({ error: () => {} });
+    // a call after a failure is a retry
+    this.hasLoadFailed.set(false);
+
+    // NotificationService already shows the error toast
+    this.notificationService.loadMore().subscribe({ error: () => this.hasLoadFailed.set(true) });
   }
 
   /** a click outside the bell and its panel closes the panel */

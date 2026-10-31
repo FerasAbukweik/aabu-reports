@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { map, Observable, switchMap, tap } from 'rxjs';
+import { EMPTY, map, Observable, tap } from 'rxjs';
 import { LocationCreateDTO } from '../../DTOs/location/location-create-dto';
 import { LocationDTO } from '../../DTOs/location/location-dto';
 import { LocationUpdateDTO } from '../../DTOs/location/location-update-dto';
@@ -25,19 +25,36 @@ export class LocationService {
   private readonly _loading = signal(false);
   public readonly loading = this._loading.asReadonly();
 
+  /** the locations were loaded from the api at least once (the list is then kept up to date by the methods below) */
+  private isLoaded = false;
+
   // methods
 
   /**
-   * Loads every location (GET /location) into the `locations` signal.
-   * The map, the search and the inspector all read from that signal.
+   * Loads the locations only if they are not loaded yet: when they are, it does nothing (no request, the
+   * `locations` signal already holds them). Use `refresh` to load them again.
    * On failure it shows an error toast and rethrows the error.
    */
   public load(): Observable<readonly LocationDTO[]> {
+    if (this.isLoaded) return EMPTY;
+
+    return this.refresh();
+  }
+
+  /**
+   * Loads every location (GET /location) into the `locations` signal, even if they are already loaded.
+   * The map, the search and the inspector all read from that signal.
+   * On failure it shows an error toast and rethrows the error.
+   */
+  public refresh(): Observable<readonly LocationDTO[]> {
     this._loading.set(true);
 
     return this.locationApi.getAll().pipe(
       tap({
-        next: (locations) => this._locations.set(locations),
+        next: (locations) => {
+          this._locations.set(locations);
+          this.isLoaded = true;
+        },
         finalize: () => this._loading.set(false),
       }),
       toastError(this.toast, 'تعذر تحميل المواقع', (e) => this.errorMessage(e, 'load')),

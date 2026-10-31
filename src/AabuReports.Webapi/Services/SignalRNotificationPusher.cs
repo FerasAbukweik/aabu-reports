@@ -1,13 +1,12 @@
 using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Dtos.Notifications;
-using AabuReports.Webapi.Hubs;
-using AabuReports.Webapi.Hubs.NotificationHub;
+using AabuReports.Webapi.Hubs.AppHub;
 using Microsoft.AspNetCore.SignalR;
 
 namespace AabuReports.Webapi.Services;
 
 public class SignalRNotificationPusher(
-    IHubContext<NotificationHub, INotificationClient> hubContext
+    IHubContext<AppHub, IAppClient> hubContext
     ) : INotificationPusher
 {
     public Task PushAsync(Guid userId, NotificationDto notification, CancellationToken cancellationToken = default)

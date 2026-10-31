@@ -14,7 +14,6 @@ import {
 } from '@angular/core';
 import { MessageDTO, messageKey } from '../../../../core/DTOs/message/message-dto';
 import { MessageService } from '../../../../core/services/api-services/message.service';
-import { MessageHubService } from '../../../../core/services/hubs/message-hub.service';
 import { formatFullDate, formatRelativeDate } from '../../../../core/utils/date-format';
 import { IsVisibleDirective } from '../../../../shared/directives/is-visible.directive';
 
@@ -28,12 +27,12 @@ const BOTTOM_THRESHOLD = 80;
  * The live chat of a report: the old messages load page by page when the user scrolls up (GET /message),
  * the new ones arrive through the MessageHub, and the box sends through the hub.
  * It loads by itself and fails by itself (a message inside the card, no page-wide toast), so the rest of the page never depends on it.
- * It provides its own hub connection and state, which close when the component is destroyed.
+ * It uses the shared SignalR connection (it only joins the group of the report, and leaves it when the component is destroyed)
+ * and the MessageService keeps the messages of every report opened, so coming back to a report does not load them again.
  */
 @Component({
   selector: 'app-report-chat',
   imports: [IsVisibleDirective],
-  providers: [MessageHubService, MessageService],
   templateUrl: './report-chat.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -49,13 +48,15 @@ export class ReportChatComponent {
   protected readonly formatFullDate = formatFullDate;
   protected readonly messageKey = messageKey;
 
-  protected readonly messages = this.service.messages;
-  protected readonly isLoading = this.service.isLoading;
-  protected readonly isMoreAvailable = this.service.isMoreAvailable;
-  protected readonly hasLoadFailed = this.service.hasLoadFailed;
-  protected readonly isFirstPageDone = this.service.isFirstPageDone;
+  // the service does not know the open report, so everything is read for this component's report
+  protected readonly messages = computed(() => this.service.messages(this.reportId()));
+  protected readonly isLoading = computed(() => this.service.isLoading(this.reportId()));
+  protected readonly isMoreAvailable = computed(() => this.service.isMoreAvailable(this.reportId()));
+
+  /** the last page of the report failed to load: the sentinel stops asking, the user retries by hand */
+  protected readonly hasLoadFailed = signal(false);
+  protected readonly typingNames = computed(() => this.service.typingNames(this.reportId()));
   protected readonly connectionState = this.service.connectionState;
-  protected readonly typingNames = this.service.typingNames;
 
   protected readonly isSending = signal(false);
   protected readonly draft = signal('');
@@ -77,23 +78,32 @@ export class ReportChatComponent {
   private beforeOlder: { height: number; top: number } | null = null;
 
   constructor() {
-    // the report changed (or the first one): clear the box and open its chat
-    effect(() => {
+    // the report changed (or the first one): clear the box, join its group and load its first page.
+    // The cleanup leaves the group of the report: it runs before the next report is joined AND when the component
+    // is destroyed (the connection stays open, and the messages stay in the service)
+    effect((onCleanup) => {
       const id = this.reportId();
 
       untracked(() => {
         this.draft.set('');
+        this.hasLoadFailed.set(false);
         this.isSentinelArmed.set(false);
         this.stickToBottom = true;
         this.beforeOlder = null;
-        this.service.open(id);
+
+        void this.service.join(id);
+
+        // a report that was opened before already has its messages
+        if (this.service.messages(id).length === 0) this.loadPage(id);
       });
+
+      onCleanup(() => void this.service.leave(id));
     });
 
     // the messages changed: keep the scroll where the user is (after the screen has the new messages)
     effect(() => {
       this.messages();
-      const firstPageDone = this.isFirstPageDone();
+      const hasMessages = this.messages().length > 0;
 
       untracked(() =>
         afterNextRender(
@@ -109,7 +119,7 @@ export class ReportChatComponent {
               el.scrollTop = el.scrollHeight;
             }
 
-            if (firstPageDone) this.isSentinelArmed.set(true);
+            if (hasMessages) this.isSentinelArmed.set(true);
           },
           { injector: this.injector },
         ),
@@ -151,8 +161,20 @@ export class ReportChatComponent {
     const el = this.scroller()?.nativeElement;
     this.beforeOlder = el ? { height: el.scrollHeight, top: el.scrollTop } : null;
 
-    this.service.loadMore().subscribe({
-      error: () => (this.beforeOlder = null), // already shown as a toast
+    this.loadPage(this.reportId());
+  }
+
+  /** loads the next page of the report; a call after a failure is a retry */
+  private loadPage(reportId: string): void {
+    this.hasLoadFailed.set(false);
+
+    this.service.loadMore(reportId).subscribe({
+      // MessageService already shows the error toast
+      error: () => {
+        this.beforeOlder = null;
+        // the report may have changed while the request was on its way
+        if (this.reportId() === reportId) this.hasLoadFailed.set(true);
+      },
     });
   }
 
@@ -164,7 +186,7 @@ export class ReportChatComponent {
     const value = (event.target as HTMLTextAreaElement).value;
 
     this.draft.set(value);
-    this.service.draftChanged(value);
+    this.service.draftChanged(this.reportId(), value);
   }
 
   protected async send(event?: Event): Promise<void> {
@@ -174,7 +196,7 @@ export class ReportChatComponent {
     if (!content || !this.canSend()) return;
 
     this.isSending.set(true);
-    const sent = await this.service.send(content);
+    const sent = await this.service.send(this.reportId(), content);
     this.isSending.set(false);
 
     // on failure the toast already told why, the text stays in the box so the user can try again
