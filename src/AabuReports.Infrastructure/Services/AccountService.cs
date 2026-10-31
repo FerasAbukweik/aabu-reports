@@ -13,8 +13,7 @@ namespace AabuReports.Infrastructure.Services;
 public class AccountService(
     UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
-    ITokenService tokenService,
-    ICookieService cookieService,
+    IEmailVerificationService verificationService,
     ILogger<AccountService> logger) : IAccountService
 {
     /// <remarks>
@@ -55,12 +54,8 @@ public class AccountService(
             return Result.Failure("Failed to complete registration", HttpStatusCode.InternalServerError);
         }
         
-        var tokensResult = await tokenService.IssueTokensAsync(user, cancellationToken);
-        if (!tokensResult.IsSuccess) return tokensResult;
-
-        cookieService.SetAuthCookies(tokensResult.Value!);
-
-        return Result.Success(HttpStatusCode.Created);
+        var verification = await verificationService.BeginAsync(user, cancellationToken);
+        return verification.IsSuccess ? Result.Success(HttpStatusCode.Created) : verification;
     }
 
     // private

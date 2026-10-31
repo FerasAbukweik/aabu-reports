@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Options;
 using AabuReports.Webapi.Services;
@@ -14,6 +15,19 @@ public static class WebApiDependencyInjectionExtension
     public static IServiceCollection AddWebApi(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddControllers();
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("verification", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    }));
+        });
         services.AddOpenApi();
 
         // signalR (real time notifications), the service in Infrastructure pushes through INotificationPusher

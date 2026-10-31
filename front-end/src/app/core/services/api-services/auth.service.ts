@@ -29,23 +29,25 @@ export class AuthService {
 
   // methods
 
-  /**
-   * Logs in, then loads the current user (GET /account/me) and saves it in local storage.
-   * The returned observable only emits after "me" has loaded, so the caller can keep showing
-   * its loading state until then. On failure it shows an error toast and rethrows the error.
-   */
-  public login(loginDTO: LoginDTO): Observable<MeDTO> {
-    return this.authApi.login({ ...loginDTO, studentId: loginDTO.studentId.trim() }).pipe(
-      toastError(this.toast, 'تعذر تسجيل الدخول', (e) => this.loginErrorMessage(e)),
+  /** Validates credentials and sends an email code; authentication completes after verification. */
+  public login(loginDTO: LoginDTO): Observable<unknown> {
+    return this.authApi
+      .login({ ...loginDTO, studentId: loginDTO.studentId.trim() })
+      .pipe(toastError(this.toast, 'تعذر تسجيل الدخول', (e) => this.loginErrorMessage(e)));
+  }
+
+  public verifyEmail(studentId: string, code: string): Observable<MeDTO> {
+    return this.authApi.verifyEmail(studentId, code).pipe(
+      toastError(this.toast, 'تعذر التحقق من الرمز'),
       switchMap(() => this.loadCurrentUser()),
     );
   }
 
-  /**
-   * Loads the current user (GET /account/me) and saves it in local storage.
-   * Used by login here and by register in AccountService.
-   * On failure it shows an error toast and rethrows the error.
-   */
+  public resendCode(studentId: string): Observable<unknown> {
+    return this.authApi.resendCode(studentId).pipe(toastError(this.toast, 'تعذر إرسال رمز جديد'));
+  }
+
+  /** Loads the authenticated user after verification or when restoring a session. */
   public loadCurrentUser(): Observable<MeDTO> {
     return this.accountApi.me().pipe(
       tap((user) => this.setUser(user)),
@@ -97,7 +99,7 @@ export class AuthService {
       case 401:
         return 'الرقم الجامعي أو كلمة المرور غير صحيحة';
       case 429:
-        return 'تم قفل الحساب مؤقتًا بسبب محاولات متكررة، حاول مرة أخرى لاحقًا';
+        return 'طلبات متكررة. انتظر قليلاً قبل طلب رمز آخر، أو حاول لاحقاً إذا كان الحساب مقفلاً مؤقتاً';
       default:
         return defaultErrorReason(error);
     }

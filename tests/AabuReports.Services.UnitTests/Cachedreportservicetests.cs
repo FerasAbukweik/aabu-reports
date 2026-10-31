@@ -89,7 +89,7 @@ public class CachedReportServiceTests : ServiceTestBase
         // Assert
         result.IsSuccess.Should().BeTrue();
         _redisMock.Verify(
-            r => r.SetAsync<IReadOnlyList<ReportMapDto>>(MapKey(locationId, lazy), fromDb, It.IsAny<CancellationToken>()), Times.Once);
+            r => r.SetAsync<IReadOnlyList<ReportMapDto>>(MapKey(locationId, lazy), fromDb, It.IsAny<CancellationToken>(), null, null), Times.Once);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class CachedReportServiceTests : ServiceTestBase
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        _redisMock.Verify(r => r.SetAsync<MaintenanceStatsDto>(MaintenanceStatsKey, fromDb, It.IsAny<CancellationToken>()), Times.Once);
+        _redisMock.Verify(r => r.SetAsync<MaintenanceStatsDto>(MaintenanceStatsKey, fromDb, It.IsAny<CancellationToken>(), null, null), Times.Once);
     }
 
     [Theory]
@@ -153,7 +153,7 @@ public class CachedReportServiceTests : ServiceTestBase
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        _redisMock.Verify(r => r.SetAsync<ReportHistoryStatsDto>(HistoryKey(userId), fromDb, It.IsAny<CancellationToken>()), Times.Once);
+        _redisMock.Verify(r => r.SetAsync<ReportHistoryStatsDto>(HistoryKey(userId), fromDb, It.IsAny<CancellationToken>(), null, null), Times.Once);
     }
 
     [Fact]

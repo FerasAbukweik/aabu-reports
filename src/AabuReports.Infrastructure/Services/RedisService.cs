@@ -26,12 +26,13 @@ public class RedisService(
         return JsonSerializer.Deserialize<T>(data, JsonOptions);
     }
 
-    public async Task SetAsync<T>(string key, T value, CancellationToken cancellationToken = default)
+    public async Task SetAsync<T>(string key, T value, CancellationToken cancellationToken = default,
+        TimeSpan? absoluteExpiration = null, TimeSpan? slidingExpiration = null)
     {
         var options = new DistributedCacheEntryOptions()
         {
-            AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(configuration.GetValue("Redis:AbsoluteExpiration", 60)),
-            SlidingExpiration = TimeSpan.FromMinutes(configuration.GetValue("Redis:SlidingExpiration", 10))
+            AbsoluteExpiration = DateTimeOffset.UtcNow.Add(absoluteExpiration ?? TimeSpan.FromMinutes(configuration.GetValue("Redis:AbsoluteExpiration", 60))),
+            SlidingExpiration = slidingExpiration ?? TimeSpan.FromMinutes(configuration.GetValue("Redis:SlidingExpiration", 10))
         };
 
         var serializedData = JsonSerializer.Serialize(value, JsonOptions);

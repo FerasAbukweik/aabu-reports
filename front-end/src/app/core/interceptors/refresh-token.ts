@@ -5,7 +5,14 @@ import { Observable, catchError, finalize, shareReplay, switchMap, throwError } 
 import { AuthService } from '../services/api-services/auth.service';
 
 // A 401 from these is a real answer, never an expired token: do not try to refresh
-const AUTH_URLS = ['/auth/refresh', '/auth/login', '/auth/register', '/auth/logout'];
+const AUTH_URLS = [
+  '/auth/refresh',
+  '/auth/login',
+  '/account/register',
+  '/auth/logout',
+  '/auth/verify-email',
+  '/auth/resend-code',
+];
 
 // One shared refresh for all requests that fail at the same time
 let refresh$: Observable<unknown> | null = null;

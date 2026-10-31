@@ -85,7 +85,7 @@ public class CachedLocationServiceTests : ServiceTestBase
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeSameAs(fromDb);
 
-        _redisMock.Verify(r => r.SetAsync<IReadOnlyList<LocationDto>>(AllKey, fromDb, It.IsAny<CancellationToken>()), Times.Once);
+        _redisMock.Verify(r => r.SetAsync<IReadOnlyList<LocationDto>>(AllKey, fromDb, It.IsAny<CancellationToken>(), null, null), Times.Once);
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public class CachedLocationServiceTests : ServiceTestBase
         result.ErrorMessage.Should().Be("db down");
 
         _redisMock.Verify(
-            r => r.SetAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<LocationDto>>(), It.IsAny<CancellationToken>()), Times.Never);
+            r => r.SetAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<LocationDto>>(), It.IsAny<CancellationToken>(), null, null), Times.Never);
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public class CachedLocationServiceTests : ServiceTestBase
 
         _redisMock.Setup(r => r.GetAsync<IReadOnlyList<LocationDto>>(AllKey, It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyList<LocationDto>?)null);
-        _redisMock.Setup(r => r.SetAsync<IReadOnlyList<LocationDto>>(AllKey, It.IsAny<IReadOnlyList<LocationDto>>(), It.IsAny<CancellationToken>()))
+        _redisMock.Setup(r => r.SetAsync<IReadOnlyList<LocationDto>>(AllKey, It.IsAny<IReadOnlyList<LocationDto>>(), It.IsAny<CancellationToken>(), null, null))
             .ThrowsAsync(new InvalidOperationException("redis is down"));
         _innerMock.Setup(i => i.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<IReadOnlyList<LocationDto>>.Success(fromDb));
@@ -193,7 +193,7 @@ public class CachedLocationServiceTests : ServiceTestBase
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        _redisMock.Verify(r => r.SetAsync<LocationDto>(ByIdKey(fromDb.Id), fromDb, It.IsAny<CancellationToken>()), Times.Once);
+        _redisMock.Verify(r => r.SetAsync<LocationDto>(ByIdKey(fromDb.Id), fromDb, It.IsAny<CancellationToken>(), null, null), Times.Once);
     }
 
     [Fact]
@@ -213,7 +213,7 @@ public class CachedLocationServiceTests : ServiceTestBase
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        _redisMock.Verify(r => r.SetAsync(It.IsAny<string>(), It.IsAny<LocationDto>(), It.IsAny<CancellationToken>()), Times.Never);
+        _redisMock.Verify(r => r.SetAsync(It.IsAny<string>(), It.IsAny<LocationDto>(), It.IsAny<CancellationToken>(), null, null), Times.Never);
     }
 
     #endregion

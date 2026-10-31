@@ -4,6 +4,7 @@ import {
   DestroyRef,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -16,6 +17,7 @@ import {
 import { AccountService } from '../../core/services/api-services/account.service';
 import { RegularExpression } from '../../core/constants/regular-expression';
 import { AuthService } from '../../core/services/api-services/auth.service';
+import { DialogComponent } from '../../shared/components/dialog/dialog.component';
 import { OtpComponent } from '../../shared/components/otp/otp.component';
 import { Router } from '@angular/router';
 import { AuthTab, SubmitState } from './login-signup.model';
@@ -33,7 +35,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
 
 @Component({
   selector: 'app-login-signup',
-  imports: [ReactiveFormsModule, OtpComponent],
+  imports: [ReactiveFormsModule, OtpComponent, DialogComponent],
   templateUrl: './login-signup.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -49,6 +51,13 @@ export class LoginSignupComponent {
   readonly activeTab = signal<AuthTab>('login');
   readonly loginState = signal<SubmitState>('idle');
   readonly registerState = signal<SubmitState>('idle');
+  readonly verificationTab = signal<AuthTab | null>(null);
+  private verificationStudentId = '';
+  readonly verificationNoticeOpen = signal(false);
+  readonly verificationState = signal<SubmitState>('idle');
+  readonly resending = signal(false);
+  readonly verificationError = signal<string | null>(null);
+  readonly otp = viewChild(OtpComponent);
 
   readonly showLoginPassword = signal(false);
   readonly showNewPassword = signal(false);
@@ -88,6 +97,8 @@ export class LoginSignupComponent {
 
   // ---------- Tabs ----------
   setTab(tab: AuthTab): void {
+    if (this.verificationTab() || this.loginState() !== 'idle' || this.registerState() !== 'idle')
+      return;
     this.activeTab.set(tab);
   }
 
@@ -140,7 +151,7 @@ export class LoginSignupComponent {
       this.loginForm.markAllAsTouched();
       return;
     }
-    if (this.loginState() !== 'idle') return;
+    if (this.loginState() !== 'idle' || this.verificationTab()) return;
 
     this.loginState.set('loading');
 
@@ -151,9 +162,7 @@ export class LoginSignupComponent {
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {
-          // logged in and the current user ("me") is loaded, so it is safe to move on
-          this.loginState.set('success');
-          this.goToApp();
+          this.beginVerification('login');
         },
         // the service already showed the error toast, only reset the button
         error: () => this.loginState.set('idle'),
@@ -165,7 +174,7 @@ export class LoginSignupComponent {
       this.registerForm.markAllAsTouched();
       return;
     }
-    if (this.registerState() !== 'idle') return;
+    if (this.registerState() !== 'idle' || this.verificationTab()) return;
 
     this.registerState.set('loading');
 
@@ -176,9 +185,7 @@ export class LoginSignupComponent {
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {
-          // account created and the current user ("me") is loaded, same as login
-          this.registerState.set('success');
-          this.goToApp();
+          this.beginVerification('register');
         },
         // the service already showed the error toast, only reset the button
         error: () => this.registerState.set('idle'),
@@ -186,16 +193,88 @@ export class LoginSignupComponent {
   }
 
   private goToApp(): void {
-    this.redirectTimeoutId = setTimeout(() => this._router.navigate(['/report']), REDIRECT_DELAY_MS);
+    this.redirectTimeoutId = setTimeout(
+      () => this._router.navigate(['/report']),
+      REDIRECT_DELAY_MS,
+    );
+  }
+
+  private submitState(tab: AuthTab) {
+    return tab === 'login' ? this.loginState : this.registerState;
+  }
+
+  private beginVerification(tab: AuthTab): void {
+    this.verificationError.set(null);
+    this.verificationTab.set(tab);
+    this.verificationStudentId = (
+      tab === 'login' ? this.loginForm : this.registerForm
+    ).controls.studentId.value.trim();
+    this.otp()?.clear();
+    this.otp()?.restartTimer();
+    this.verificationNoticeOpen.set(true);
+    this.submitState(tab).set('success');
+    this.redirectTimeoutId = setTimeout(() => {
+      this.redirectTimeoutId = null;
+      this.submitState(tab).set('idle');
+      const code = this.otp()?.code();
+      if (code?.length === 6) this.onOtpCompleted(code);
+      else if (!this.verificationNoticeOpen()) this.otp()?.focus(0);
+    }, REDIRECT_DELAY_MS);
   }
 
   onResendOtp(): void {
-    // the otp component already restarted its countdown
-    // TODO: connect to API
+    if (!this.verificationTab() || this.resending() || this.verificationState() !== 'idle') return;
+    this.verificationError.set(null);
+    this.resending.set(true);
+    this._authService
+      .resendCode(this.verificationStudentId)
+      .pipe(takeUntilDestroyed(this._destroyRef))
+      .subscribe({
+        next: () => {
+          this.resending.set(false);
+          this.otp()?.clear();
+          this.otp()?.restartTimer();
+          this.otp()?.focus(0);
+        },
+        error: () => {
+          this.resending.set(false);
+          this.verificationError.set(
+            'تعذر إرسال رمز جديد. انتظر قليلاً وحاول مجدداً، أو سجّل الدخول لطلب رمز جديد.',
+          );
+        },
+      });
   }
 
-  onOtpCompleted(_code: string): void {
-    // TODO: verify the code with the API, and clear the otp component if it is wrong
+  onOtpCompleted(code: string): void {
+    const tab = this.verificationTab();
+    if (!tab || this.resending() || this.verificationState() !== 'idle') return;
+    // Keep the initial success visible for 1.2 seconds even if the user pastes immediately.
+    if (this.redirectTimeoutId) return;
+    this.verificationError.set(null);
+    this.verificationState.set('loading');
+    this.submitState(tab).set('loading');
+    this._authService
+      .verifyEmail(this.verificationStudentId, code)
+      .pipe(takeUntilDestroyed(this._destroyRef))
+      .subscribe({
+        next: () => {
+          this.verificationState.set('success');
+          this.submitState(tab).set('success');
+          this.goToApp();
+        },
+        error: () => {
+          this.verificationError.set('تعذر التحقق. تأكد من الرمز وصلاحيته، أو اطلب رمزاً جديداً.');
+          this.verificationState.set('idle');
+          this.submitState(tab).set('idle');
+          this.otp()?.clear();
+          this.otp()?.focus(0);
+        },
+      });
+  }
+
+  dismissVerificationNotice(): void {
+    this.verificationNoticeOpen.set(false);
+    this.otp()?.focus(0);
   }
 
   openHelp(): void {

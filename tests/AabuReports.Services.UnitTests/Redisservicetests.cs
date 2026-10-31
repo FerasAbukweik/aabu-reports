@@ -124,6 +124,22 @@ public class RedisServiceTests : ServiceTestBase
     }
 
     [Fact]
+    public async Task SetAsync_ShouldUseExplicitExpiryOverridesInsteadOfCacheDefaults()
+    {
+        DistributedCacheEntryOptions? savedOptions = null;
+        _cacheMock.Setup(c => c.SetAsync("verification", It.IsAny<byte[]>(),
+                It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()))
+            .Callback<string, byte[], DistributedCacheEntryOptions, CancellationToken>((_, _, options, _) => savedOptions = options)
+            .Returns(Task.CompletedTask);
+
+        await CreateService().SetAsync("verification", "code-hash", absoluteExpiration: TimeSpan.FromMinutes(5),
+            slidingExpiration: TimeSpan.FromMinutes(1));
+
+        savedOptions!.AbsoluteExpiration.Should().BeCloseTo(DateTimeOffset.UtcNow.AddMinutes(5), TimeSpan.FromSeconds(2));
+        savedOptions.SlidingExpiration.Should().Be(TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
     public async Task RemoveAsync_ShouldRemoveTheKeyFromTheCache()
     {
         // Arrange

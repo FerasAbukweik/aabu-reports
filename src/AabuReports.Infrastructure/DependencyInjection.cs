@@ -55,6 +55,8 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         // cached services: the real service is registered with the "inner" key, the cached decorator takes its place
         services.AddKeyedScoped<ILocationService, LocationService>("inner");
         services.AddScoped<ILocationService, CachedLocationService>();

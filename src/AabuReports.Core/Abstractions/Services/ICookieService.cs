@@ -1,4 +1,3 @@
-using AabuReports.Core.Dtos.Accounts;
 using AabuReports.Core.Dtos.Auth;
 
 namespace AabuReports.Core.Abstractions.Services;
@@ -17,4 +16,5 @@ public interface ICookieService
 
     /// <returns> the refresh token from the request cookies, or null if there is none </returns>
     string? GetRefreshToken();
+
 }

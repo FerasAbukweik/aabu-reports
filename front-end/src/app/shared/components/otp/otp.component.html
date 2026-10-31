@@ -11,10 +11,9 @@
     </span>
   </div>
 
-  <h3 class="text-sm font-bold text-primary">التحقق من الهاتف المعتمد</h3>
+  <h3 class="text-sm font-bold text-primary">التحقق من البريد الإلكتروني</h3>
   <p class="text-[11px] text-text-secondary mt-1">
-    تم تجهيز رسالة التوثيق للرقم المسجل:
-    <span class="font-bold text-primary" dir="ltr">{{ phone() }}</span>
+    أدخل رمز التحقق المرسل إلى بريدك الإلكتروني المسجل.
   </p>
 
   <!-- digit inputs -->
@@ -30,6 +29,7 @@
         inputmode="numeric"
         autocomplete="one-time-code"
         maxlength="1"
+        [disabled]="disabled()"
         class="otp-box h-10 text-base"
         placeholder="•"
         [attr.aria-label]="'الخانة ' + (i + 1) + ' من رمز التحقق'"
@@ -46,7 +46,7 @@
     <button
       type="button"
       class="link-accent disabled:cursor-not-allowed disabled:opacity-50"
-      [disabled]="secondsLeft() > 0"
+      [disabled]="disabled() || secondsLeft() > 0"
       (click)="onResend()"
     >
       إعادة إرسال الرمز

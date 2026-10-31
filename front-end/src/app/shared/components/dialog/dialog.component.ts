@@ -29,6 +29,7 @@ export class DialogComponent {
   readonly icon = input('info');
   /** tailwind max-width class of the dialog */
   readonly maxWidth = input('max-w-lg');
+  readonly dismissible = input(true);
 
   // output
   readonly closed = output<void>();
@@ -54,7 +55,12 @@ export class DialogComponent {
     if (this.open()) this.closed.emit();
   }
 
+  protected onNativeCancel(event: Event): void {
+    event.preventDefault();
+    if (this.dismissible()) this.closed.emit();
+  }
+
   protected onBackdropClick(event: MouseEvent): void {
-    if (event.target === this.dialog()?.nativeElement) this.closed.emit();
+    if (this.dismissible() && event.target === this.dialog()?.nativeElement) this.closed.emit();
   }
 }

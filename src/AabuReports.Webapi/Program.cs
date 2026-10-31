@@ -40,6 +40,7 @@ if (builder.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

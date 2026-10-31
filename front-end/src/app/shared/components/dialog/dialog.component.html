@@ -7,6 +7,7 @@
   [attr.aria-labelledby]="titleId"
   (click)="onBackdropClick($event)"
   (close)="onNativeClose()"
+  (cancel)="onNativeCancel($event)"
 >
   <div class="overflow-hidden rounded-2xl border border-border-subtle bg-surface-card shadow-2xl">
     <!-- Header -->
@@ -30,6 +31,7 @@
         type="button"
         class="flex h-10 w-10 items-center justify-center rounded-lg border border-on-primary/20 bg-on-primary/10 transition hover:bg-on-primary/20"
         aria-label="إغلاق النافذة"
+        [disabled]="!dismissible()"
         (click)="closed.emit()"
       >
         <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>

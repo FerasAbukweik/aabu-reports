@@ -1,29 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, switchMap } from 'rxjs';
-import { MeDTO } from '../../DTOs/account/me-dto';
+import { Observable } from 'rxjs';
 import { RegisterDTO } from '../../DTOs/account/register-dto';
 import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { AccountApiService } from '../api/account-api.service';
 import { ToastService } from '../local/toast.service';
-import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class AccountService {
   // DI
   private accountApi = inject(AccountApiService);
-  private authService = inject(AuthService);
   private toast = inject(ToastService);
 
   // methods
 
-  /**
-   * Creates the account (the api also signs the user in by setting the auth cookies), then loads
-   * the current user (GET /account/me) like login does.
-   * The returned observable only emits after "me" has loaded.
-   * On failure it shows an error toast and rethrows the error.
-   */
-  public register(registerDTO: RegisterDTO): Observable<MeDTO> {
+  /** Creates the account and sends its email verification code. */
+  public register(registerDTO: RegisterDTO): Observable<unknown> {
     return this.accountApi
       .register({
         ...registerDTO,
@@ -31,10 +23,7 @@ export class AccountService {
         email: registerDTO.email.trim(),
         fullName: registerDTO.fullName.trim(),
       })
-      .pipe(
-        toastError(this.toast, 'تعذر إنشاء الحساب', (e) => this.registerErrorMessage(e)),
-        switchMap(() => this.authService.loadCurrentUser()),
-      );
+      .pipe(toastError(this.toast, 'تعذر إنشاء الحساب', (e) => this.registerErrorMessage(e)));
   }
 
   // private

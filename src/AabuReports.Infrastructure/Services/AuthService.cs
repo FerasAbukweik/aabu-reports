@@ -13,7 +13,8 @@ public class AuthService(
     ITokenService tokenService,
     IRefreshTokenService refreshTokenService,
     ICookieService cookieService,
-    ILogger<AuthService> logger) : IAuthService
+    ILogger<AuthService> logger,
+    IEmailVerificationService verificationService) : IAuthService
 {
     private const string LockedOutMessage = "Account is temporarily locked, try again later";
 
@@ -40,18 +41,20 @@ public class AuthService(
             return Result.Failure(invalidCredentialsMessage, HttpStatusCode.Unauthorized);
         }
 
+        return await verificationService.BeginAsync(user, cancellationToken);
+    }
+
+    public async Task<Result> VerifyEmail(string studentId, string code, CancellationToken cancellationToken = default)
+    {
+        var verification = await verificationService.VerifyAsync(studentId, code, cancellationToken);
+        if (!verification.IsSuccess) return verification;
+
+        var user = verification.Value!;
         await userManager.ResetAccessFailedCountAsync(user);
+        var tokens = await tokenService.IssueTokensAsync(user, cancellationToken);
+        if (!tokens.IsSuccess) return tokens;
 
-        var tokensResult = await tokenService.IssueTokensAsync(user, cancellationToken);
-        if (!tokensResult.IsSuccess)
-        {
-            logger.LogError("{ServiceName}.{MethodName} failed issuing tokens for user with Id: {UserId}. Error: {Error}",
-                nameof(AuthService), nameof(Login), user.Id.ToString(), tokensResult.ErrorMessage);
-            return tokensResult;
-        }
-
-        cookieService.SetAuthCookies(tokensResult.Value!);
-
+        cookieService.SetAuthCookies(tokens.Value!);
         return Result.Success();
     }
 

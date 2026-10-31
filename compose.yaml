@@ -22,6 +22,12 @@
       - CloudinarySettings__ApiKey=${ApiKey}
       - CloudinarySettings__ApiSecret=${ApiSecret}
       - ConnectionStrings__Redis=redis:6379
+      - Email__Host=${SMTP_HOST:-}
+      - Email__Port=${SMTP_PORT:-587}
+      - Email__EnableSsl=${SMTP_ENABLE_SSL:-true}
+      - Email__From=${SMTP_FROM:-}
+      - Email__Username=${SMTP_USERNAME:-}
+      - Email__Password=${SMTP_PASSWORD:-}
     depends_on:
       mssql-service:
         condition: service_healthy

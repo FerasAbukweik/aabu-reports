@@ -17,6 +17,14 @@ export class AuthApiService {
     return this.http.post(`${this.url}/login`, loginDTO);
   }
 
+  public verifyEmail(studentId: string, code: string) {
+    return this.http.post(`${this.url}/verify-email`, { studentId, code });
+  }
+
+  public resendCode(studentId: string) {
+    return this.http.post(`${this.url}/resend-code`, { studentId });
+  }
+
   public refresh() {
     return this.http.post(`${this.url}/refresh`, {});
   }

@@ -7,9 +7,12 @@ namespace AabuReports.Core.Abstractions.Services;
 public interface IAuthService
 {
     /// <summary>
-    /// checks the credentials and, if valid, writes the auth cookies
+    /// checks the credentials and, if valid, sends an email verification code
     /// </summary>
     Task<Result> Login(LoginDto loginDto, CancellationToken cancellationToken = default);
+
+    /// <summary> verifies the email code and completes sign-in for login or registration </summary>
+    Task<Result> VerifyEmail(string studentId, string code, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// reads the refresh token from the request cookies, consumes it (rotation) and writes a new token pair

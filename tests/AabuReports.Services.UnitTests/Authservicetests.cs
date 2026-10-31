@@ -21,6 +21,7 @@ public class AuthServiceTests : ServiceTestBase
     private readonly Mock<ITokenService> _tokenServiceMock;
     private readonly Mock<IRefreshTokenService> _refreshTokenServiceMock;
     private readonly Mock<ICookieService> _cookieServiceMock;
+    private readonly Mock<IEmailVerificationService> _verificationMock = new();
 
     public AuthServiceTests(ITestOutputHelper output) : base(output)
     {
@@ -29,12 +30,15 @@ public class AuthServiceTests : ServiceTestBase
         _refreshTokenServiceMock = new Mock<IRefreshTokenService>();
         _cookieServiceMock = new Mock<ICookieService>();
 
+        _verificationMock.Setup(v => v.BeginAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
         _authService = new AuthService(
             _userManagerMock.Object,
             _tokenServiceMock.Object,
             _refreshTokenServiceMock.Object,
             _cookieServiceMock.Object,
-            NullLogger<AuthService>.Instance);
+            NullLogger<AuthService>.Instance,
+            _verificationMock.Object);
     }
 
     private LoginDto CreateLoginDto() => new()
@@ -126,7 +130,7 @@ public class AuthServiceTests : ServiceTestBase
     }
 
     [Fact]
-    public async Task Login_ShouldReturnFailureAndNotSetCookies_WhenIssuingTokensFails()
+    public async Task Login_ShouldReturnFailureAndNotSetCookies_WhenSendingCodeFails()
     {
         // Arrange
         var dto = CreateLoginDto();
@@ -137,8 +141,8 @@ public class AuthServiceTests : ServiceTestBase
         _userManagerMock.Setup(m => m.IsLockedOutAsync(user)).ReturnsAsync(false);
         _userManagerMock.Setup(m => m.CheckPasswordAsync(user, dto.Password)).ReturnsAsync(true);
         _userManagerMock.Setup(m => m.ResetAccessFailedCountAsync(user)).ReturnsAsync(IdentityResult.Success);
-        _tokenServiceMock.Setup(t => t.IssueTokensAsync(user, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<AuthResponseDto>.Failure("token generation failed", HttpStatusCode.InternalServerError));
+        _verificationMock.Setup(v => v.BeginAsync(user, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure("email delivery failed", HttpStatusCode.ServiceUnavailable));
 
         // Act
         var result = await _authService.Login(dto);
@@ -146,28 +150,24 @@ public class AuthServiceTests : ServiceTestBase
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
-        result.ErrorMessage.Should().Be("token generation failed");
+        result.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        result.ErrorMessage.Should().Be("email delivery failed");
 
         _cookieServiceMock.Verify(c => c.SetAuthCookies(It.IsAny<AuthResponseDto>()), Times.Never);
     }
 
     [Fact]
-    public async Task Login_ShouldResetFailedCountAndSetCookies_WhenCredentialsAreValid()
+    public async Task Login_ShouldSendCodeWithoutAuthenticating_WhenCredentialsAreValid()
     {
         // Arrange
         var dto = CreateLoginDto();
         var user = CreateUser();
-        var tokens = CreateAuthResponse();
         LogArrange(nameof(dto), dto);
-        LogArrange(nameof(tokens), tokens);
 
         _userManagerMock.Setup(m => m.FindByNameAsync(dto.StudentId.Trim())).ReturnsAsync(user);
         _userManagerMock.Setup(m => m.IsLockedOutAsync(user)).ReturnsAsync(false);
         _userManagerMock.Setup(m => m.CheckPasswordAsync(user, dto.Password)).ReturnsAsync(true);
         _userManagerMock.Setup(m => m.ResetAccessFailedCountAsync(user)).ReturnsAsync(IdentityResult.Success);
-        _tokenServiceMock.Setup(t => t.IssueTokensAsync(user, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<AuthResponseDto>.Success(tokens));
 
         // Act
         var result = await _authService.Login(dto);
@@ -177,11 +177,42 @@ public class AuthServiceTests : ServiceTestBase
         result.IsSuccess.Should().BeTrue();
         result.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        _userManagerMock.Verify(m => m.ResetAccessFailedCountAsync(user), Times.Once);
-        _cookieServiceMock.Verify(c => c.SetAuthCookies(tokens), Times.Once);
+        _verificationMock.Verify(v => v.BeginAsync(user, It.IsAny<CancellationToken>()), Times.Once);
+        _tokenServiceMock.Verify(t => t.IssueTokensAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()), Times.Never);
+        _cookieServiceMock.Verify(c => c.SetAuthCookies(It.IsAny<AuthResponseDto>()), Times.Never);
     }
 
     #endregion
+
+    [Fact]
+    public async Task VerifyEmail_ShouldIssueTokensAndSetCookies_WhenCodeMatches()
+    {
+        var user = CreateUser();
+        var tokens = CreateAuthResponse();
+        _verificationMock.Setup(v => v.VerifyAsync("1234567890", "123456", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ApplicationUser>.Success(user));
+        _tokenServiceMock.Setup(t => t.IssueTokensAsync(user, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<AuthResponseDto>.Success(tokens));
+
+        var result = await _authService.VerifyEmail("1234567890", "123456");
+
+        result.IsSuccess.Should().BeTrue();
+        _cookieServiceMock.Verify(c => c.SetAuthCookies(tokens), Times.Once);
+        _userManagerMock.Verify(u => u.UpdateAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task VerifyEmail_ShouldNotIssueTokens_WhenCodeDoesNotMatch()
+    {
+        _verificationMock.Setup(v => v.VerifyAsync("1234567890", "123456", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ApplicationUser>.Failure("Invalid code"));
+
+        var result = await _authService.VerifyEmail("1234567890", "123456");
+
+        result.IsSuccess.Should().BeFalse();
+        _tokenServiceMock.Verify(t => t.IssueTokensAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()), Times.Never);
+        _cookieServiceMock.Verify(c => c.SetAuthCookies(It.IsAny<AuthResponseDto>()), Times.Never);
+    }
 
     #region Refresh
 

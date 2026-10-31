@@ -25,8 +25,7 @@ export class OtpComponent implements OnInit {
   readonly length = input(6);
   /** countdown before the code can be re-sent, in seconds */
   readonly seconds = input(45);
-  /** phone number shown in the card */
-  readonly phone = input('+962 79XXXXXXX');
+  readonly disabled = input(false);
 
   /** emits the full code as soon as the last digit is entered */
   readonly completed = output<string>();
@@ -104,9 +103,8 @@ export class OtpComponent implements OnInit {
   }
 
   onResend(): void {
-    if (this.secondsLeft() > 0) return;
+    if (this.disabled() || this.secondsLeft() > 0) return;
 
-    this.startTimer();
     this.resend.emit();
   }
 
@@ -118,6 +116,10 @@ export class OtpComponent implements OnInit {
   private emitIfComplete(): void {
     const code = this.code();
     if (code.length === this.length()) this.completed.emit(code);
+  }
+
+  restartTimer(): void {
+    this.startTimer();
   }
 
   private startTimer(): void {

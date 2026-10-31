@@ -20,21 +20,19 @@ public class AccountServiceTests : ServiceTestBase
     private readonly IAccountService _accountService;
     private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
     private readonly Mock<RoleManager<ApplicationRole>> _roleManagerMock;
-    private readonly Mock<ITokenService> _tokenServiceMock;
-    private readonly Mock<ICookieService> _cookieServiceMock;
+    private readonly Mock<IEmailVerificationService> _verificationMock = new();
 
     public AccountServiceTests(ITestOutputHelper output) : base(output)
     {
         _userManagerMock = CreateUserManagerMock();
         _roleManagerMock = CreateRoleManagerMock();
-        _tokenServiceMock = new Mock<ITokenService>();
-        _cookieServiceMock = new Mock<ICookieService>();
 
+        _verificationMock.Setup(v => v.BeginAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
         _accountService = new AccountService(
             _userManagerMock.Object,
             _roleManagerMock.Object,
-            _tokenServiceMock.Object,
-            _cookieServiceMock.Object,
+            _verificationMock.Object,
             NullLogger<AccountService>.Instance);
     }
 
@@ -139,8 +137,6 @@ public class AccountServiceTests : ServiceTestBase
             .ReturnsAsync(true);
         _roleManagerMock.Setup(r => r.CreateAsync(It.IsAny<ApplicationRole>()))
             .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "duplicate role" }));
-        _tokenServiceMock.Setup(t => t.IssueTokensAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<AuthResponseDto>.Success(CreateAuthResponse()));
 
         // Act
         var result = await _accountService.Register(dto);
@@ -161,8 +157,6 @@ public class AccountServiceTests : ServiceTestBase
 
         _roleManagerMock.Setup(r => r.RoleExistsAsync(nameof(AppRole.Student))).ReturnsAsync(false);
         _roleManagerMock.Setup(r => r.CreateAsync(It.IsAny<ApplicationRole>())).ReturnsAsync(IdentityResult.Success);
-        _tokenServiceMock.Setup(t => t.IssueTokensAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<AuthResponseDto>.Success(CreateAuthResponse()));
 
         // Act
         var result = await _accountService.Register(dto);
@@ -226,11 +220,11 @@ public class AccountServiceTests : ServiceTestBase
         // the real reason is only logged, the client gets a generic message
         result.ErrorMessage.Should().Be("Failed to complete registration");
 
-        _tokenServiceMock.Verify(t => t.IssueTokensAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()), Times.Never);
+        _verificationMock.Verify(v => v.BeginAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Register_ShouldReturnFailureAndNotSetCookies_WhenIssuingTokensFails()
+    public async Task Register_ShouldReturnFailureAndNotSetCookies_WhenSendingCodeFails()
     {
         // Arrange
         var dto = CreateRegisterDto();
@@ -239,8 +233,8 @@ public class AccountServiceTests : ServiceTestBase
         SetupRoleExists();
         SetupUserCreationSucceeds();
 
-        _tokenServiceMock.Setup(t => t.IssueTokensAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<AuthResponseDto>.Failure("token generation failed", HttpStatusCode.InternalServerError));
+        _verificationMock.Setup(v => v.BeginAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure("email delivery failed", HttpStatusCode.ServiceUnavailable));
 
         // Act
         var result = await _accountService.Register(dto);
@@ -248,20 +242,17 @@ public class AccountServiceTests : ServiceTestBase
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
-        result.ErrorMessage.Should().Be("token generation failed");
+        result.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        result.ErrorMessage.Should().Be("email delivery failed");
 
-        _cookieServiceMock.Verify(c => c.SetAuthCookies(It.IsAny<AuthResponseDto>()), Times.Never);
     }
 
     [Fact]
-    public async Task Register_ShouldCreateTrimmedStudentUserAndSetCookies_WhenAllStepsSucceed()
+    public async Task Register_ShouldCreateTrimmedStudentUserAndSendCode_WhenAllStepsSucceed()
     {
         // Arrange
         var dto = CreateRegisterDto();
-        var tokens = CreateAuthResponse();
         LogArrange(nameof(dto), dto);
-        LogArrange(nameof(tokens), tokens);
 
         SetupNoExistingUser();
         SetupRoleExists();
@@ -272,8 +263,6 @@ public class AccountServiceTests : ServiceTestBase
             .ReturnsAsync(IdentityResult.Success);
         _userManagerMock.Setup(m => m.AddToRoleAsync(It.IsAny<ApplicationUser>(), nameof(AppRole.Student)))
             .ReturnsAsync(IdentityResult.Success);
-        _tokenServiceMock.Setup(t => t.IssueTokensAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<AuthResponseDto>.Success(tokens));
 
         // Act
         var result = await _accountService.Register(dto);
@@ -290,7 +279,7 @@ public class AccountServiceTests : ServiceTestBase
         created.FullName.Should().Be(dto.FullName.Trim());
 
         _userManagerMock.Verify(m => m.AddToRoleAsync(created, nameof(AppRole.Student)), Times.Once);
-        _cookieServiceMock.Verify(c => c.SetAuthCookies(tokens), Times.Once);
+        _verificationMock.Verify(v => v.BeginAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
