@@ -27,6 +27,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\AabuReports.Infrastructure\AabuReports.Infrastructure.csproj" />
+      <ProjectReference Include="..\..\src\AabuReports.Webapi\AabuReports.Webapi.csproj" />
     </ItemGroup>
 
 </Project>

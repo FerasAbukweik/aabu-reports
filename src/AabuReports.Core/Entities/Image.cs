@@ -43,6 +43,8 @@ public class Image
         return $"Id: {this.Id},  Url: {this.Url}, PublicId: {this.PublicId}";
     }
 
+    public override int GetHashCode() => Id.GetHashCode();
+
     public override bool Equals(object? obj)
     {
         if (obj is not Image other) return false;

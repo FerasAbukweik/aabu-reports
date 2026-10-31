@@ -14,12 +14,11 @@ public interface IReportService
     Task<Result<IReadOnlyList<ReportDto>>> LazyGetFilteredAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// gets a report by its id, only its owner or an admin can see it
+    /// gets a report by its id; every authenticated user can view it
     /// </summary>
-    /// <param name="userId"> only the reports of this user can be found, null for an admin (every report) </param>
     /// <param name="idOrShortId"> the guid of the report, or the short number the user sees ("968FCB28" / "#968FCB28", the first 8 characters of the guid) </param>
-    /// <returns> result object with the report, 404 if it doesnt exist (or is not the user's report: its existence is not revealed),
-    /// 409 if a short number matches more than one of the user's reports </returns>
+    /// <returns> result object with the report, 404 if it doesnt exist,
+    /// 409 if a short number matches more than one report </returns>
     Task<Result<ReportDto>> GetByIdAsync(string idOrShortId, CancellationToken cancellationToken = default);
 
     /// <summary>

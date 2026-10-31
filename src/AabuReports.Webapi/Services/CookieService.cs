@@ -17,6 +17,10 @@ public class CookieService(
     public void SetAuthCookies(AuthResponseDto auth)
     {
         var settings = options.Value;
+        // Append the expired legacy cookie so deleting the current cookie cannot discard this header.
+        if (settings.RefreshTokenPath != "/api/auth/refresh")
+            HttpContext.Response.Cookies.Append(settings.RefreshTokenCookieName, string.Empty,
+                BuildOptions("/api/auth/refresh", DateTime.UnixEpoch));
 
         HttpContext.Response.Cookies.Append(
             settings.AccessTokenCookieName,
@@ -32,10 +36,11 @@ public class CookieService(
     public void ClearAuthCookies()
     {
         var settings = options.Value;
-
-        // the path and domain must match the ones used when the cookie was set
         HttpContext.Response.Cookies.Delete(settings.AccessTokenCookieName, BuildOptions(AccessTokenPath, null));
         HttpContext.Response.Cookies.Delete(settings.RefreshTokenCookieName, BuildOptions(settings.RefreshTokenPath, null));
+        if (settings.RefreshTokenPath != "/api/auth/refresh")
+            HttpContext.Response.Cookies.Append(settings.RefreshTokenCookieName, string.Empty,
+                BuildOptions("/api/auth/refresh", DateTime.UnixEpoch));
     }
 
     public string? GetRefreshToken()

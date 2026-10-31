@@ -44,12 +44,12 @@ public class CloudinaryService : ICloudinaryService
 
         if (result.Error != null)
         {
-            _logger.LogError("{serviceName}.{methodName} failed uploading image\nErrors: {errors}",
+            _logger.LogError("{ServiceName}.{MethodName} failed uploading image\nErrors: {errors}",
                 nameof(CloudinaryService), nameof(Upload), result.Error.Message);
         }
         else
         {
-            _logger.LogError("{serviceName}.{methodName} image was uploaded with publicId of {publicId}",
+            _logger.LogInformation("{ServiceName}.{MethodName} image was uploaded with publicId of {publicId}",
                 nameof(CloudinaryService), nameof(Upload), result.PublicId);
         }
 
@@ -64,12 +64,12 @@ public class CloudinaryService : ICloudinaryService
 
         if (result.Error != null)
         {
-            _logger.LogError("{serviceName}.{methodName} failed deleting image\nErrors: {errors}",
+            _logger.LogError("{ServiceName}.{MethodName} failed deleting image\nErrors: {errors}",
                 nameof(CloudinaryService), nameof(Delete), result.Error.Message);
         }
         else
         {
-            _logger.LogError("{serviceName}.{methodName} image with public id of {publicId} was deleted",
+            _logger.LogInformation("{ServiceName}.{MethodName} image with public id of {publicId} was deleted",
                 nameof(CloudinaryService), nameof(Delete), publicId);
         }
         
@@ -96,12 +96,12 @@ public class CloudinaryService : ICloudinaryService
             if (result.Error != null)
             {
                 allDeleted = false;
-                _logger.LogError("{serviceName}.{methodName} failed deleting {count} images\nErrors: {errors}",
+                _logger.LogError("{ServiceName}.{MethodName} failed deleting {count} images\nErrors: {errors}",
                     nameof(CloudinaryService), nameof(DeleteMany), batch.Length, result.Error.Message);
             }
             else
             {
-                _logger.LogInformation("{serviceName}.{methodName} deleted {count} images",
+                _logger.LogInformation("{ServiceName}.{MethodName} deleted {count} images",
                     nameof(CloudinaryService), nameof(DeleteMany), batch.Length);
             }
         }

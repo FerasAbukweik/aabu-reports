@@ -6,12 +6,14 @@ using AabuReports.Webapi.ExtensionMethods;
 using AabuReports.Webapi.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AabuReports.Webapi.Controllers;
 
 public class AccountController(IAccountService accountService) : ApiControllerBase
 {
     [HttpPost("register")]
+    [EnableRateLimiting("verification")]
     [AllowAnonymous]
     [Transactional]
     public async Task<IActionResult> Register(RegisterDto registerDto, CancellationToken cancellationToken)
@@ -35,6 +37,7 @@ public class AccountController(IAccountService accountService) : ApiControllerBa
     }
 
     [HttpPost("is-admin")]
+    [Authorize]
     public ActionResult IsAdmin()
     {
         if (User.IsAdmin()) return Ok();

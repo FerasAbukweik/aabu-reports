@@ -54,6 +54,8 @@ public class Location
         return $"Id: {this.Id}, Title: {this.Title}, Coordinates: {this.Coordinates},  Type: {this.Type}";
     }
 
+    public override int GetHashCode() => Id.GetHashCode();
+
     public override bool Equals(object? obj)
     {
         if(obj is not Location other) return false;

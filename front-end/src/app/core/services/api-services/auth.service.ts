@@ -74,12 +74,20 @@ export class AuthService {
   /** Forgets the user (signal and local storage), so the guards send them to the login page. */
   public clearUser(): void {
     this._currentUser.set(null);
-    localStorage.removeItem(USER_KEY);
+    try {
+      localStorage.removeItem(USER_KEY);
+    } catch {
+      /* Storage can be disabled. */
+    }
   }
 
   private setUser(user: MeDTO): void {
     this._currentUser.set(user);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    try {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } catch {
+      /* The in-memory session remains usable. */
+    }
   }
 
   private readStoredUser(): MeDTO | null {

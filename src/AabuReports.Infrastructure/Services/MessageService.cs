@@ -28,14 +28,21 @@ public class MessageService(
 
     public async Task<Result<MessageDto>> AddAsync(Guid reportId, Guid senderId, string content, CancellationToken cancellationToken = default)
     {
-        var text = content.Trim();
+        var text = content?.Trim();
         if (string.IsNullOrEmpty(text))
             return Result<MessageDto>.Failure(EmptyContentMessage);
+
+        if (text.Length > 500)
+            return Result<MessageDto>.Failure("The message cannot exceed 500 characters");
 
         // add it now so we are be able to access the username
         var sender = await userManager.FindByIdAsync(senderId.ToString());
         if (sender is null)
             return Result<MessageDto>.Failure(UserNotFoundMessage, HttpStatusCode.NotFound);
+
+        var ownerResult = await GetOwnerIdAsync(reportId, cancellationToken);
+        if (!ownerResult.IsSuccess)
+            return ownerResult.MapFailure<MessageDto>();
 
         var message = new Message
         {
@@ -57,10 +64,6 @@ public class MessageService(
             return Result<MessageDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
 
-        var ownerResult = await GetOwnerIdAsync(reportId, cancellationToken);
-        if (!ownerResult.IsSuccess)
-            return ownerResult.MapFailure<MessageDto>();
-        
         // tell the owner of the report about the new message, unless he wrote it himself
         if (ownerResult.Value != senderId)
             await NotifyOwnerAsync(ownerResult.Value, reportId, cancellationToken);
@@ -92,14 +95,20 @@ public class MessageService(
     /// <summary> a notification that fails must not fail the message that is already saved, so it is only logged </summary>
     private async Task NotifyOwnerAsync(Guid ownerId, Guid reportId, CancellationToken cancellationToken)
     {
-        // the location title is the subject of the notification
-        var report = await reportRepository.GetByIdAsync(reportId, cancellationToken);
-
-        var result = await notificationService.CreateAsync(
-            ownerId, NotificationType.NewMessage, NewMessageNotificationMessage, report?.Location?.Title, reportId, cancellationToken);
-
-        if (!result.IsSuccess)
-            logger.LogWarning("{ServiceName} could not create a {NotificationType} notification for report {ReportId}: {Error}",
-                nameof(MessageService), NotificationType.NewMessage, reportId, result.ErrorMessage);
+        try
+        {
+            // the location title is the subject of the notification
+            var report = await reportRepository.GetByIdAsync(reportId, cancellationToken);
+            var result = await notificationService.CreateAsync(
+                ownerId, NotificationType.NewMessage, NewMessageNotificationMessage, report?.Location?.Title, reportId, cancellationToken);
+            if (!result.IsSuccess)
+                logger.LogWarning("{ServiceName} could not create a {NotificationType} notification for report {ReportId}: {Error}",
+                    nameof(MessageService), NotificationType.NewMessage, reportId, result.ErrorMessage);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "{ServiceName}.{MethodName} failed to notify the owner of report {ReportId}",
+                nameof(MessageService), nameof(NotifyOwnerAsync), reportId);
+        }
     }
 }

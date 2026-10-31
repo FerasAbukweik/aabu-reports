@@ -1,0 +1,14 @@
+.git
+.aws
+.codex
+.agents
+.env
+.env.*
+**/node_modules
+**/bin
+**/obj
+**/logs
+**/dist
+**/.angular
+.idea
+project

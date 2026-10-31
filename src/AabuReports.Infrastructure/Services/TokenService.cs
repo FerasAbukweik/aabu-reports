@@ -1,16 +1,13 @@
 using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Dtos.Auth;
 using AabuReports.Core.Entities.Identity;
-using AabuReports.Core.Options;
 using AabuReports.Core.Results;
-using Microsoft.Extensions.Options;
 
 namespace AabuReports.Infrastructure.Services;
 
 public class TokenService(
     IAccessTokenService accessTokenService,
-    IRefreshTokenService refreshTokenService,
-    IOptions<JwtOptions> jwtOptions) : ITokenService
+    IRefreshTokenService refreshTokenService) : ITokenService
 {
     public async Task<Result<AuthResponseDto>> IssueTokensAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {

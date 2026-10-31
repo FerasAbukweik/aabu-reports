@@ -36,13 +36,13 @@ public class LocationRepository(
             {
                 Location = l,
                 Highest = l.Reports.Max(r => (int?)r.State) ?? 0,
-                ReportsCount = l.Reports.Count()
+                ActiveReportsCount = l.Reports.Count(r => (int)r.State > (int)ReportStateEnum.Fixed)
             })
             .FirstOrDefaultAsync(cancellationToken);
         if (row == null) return null;
 
         row.Location.State = (ReportStateEnum)row.Highest;
-        row.Location.ActiveReportsCount = row.ReportsCount;
+        row.Location.ActiveReportsCount = row.ActiveReportsCount;
 
         return row.Location;
     }

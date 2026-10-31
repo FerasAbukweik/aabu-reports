@@ -127,7 +127,7 @@ public class LocationRepositoryTests : RepositoryTestBase
 
         // Assert: Pending is the most urgent of Fixed / Pending / InProgress
         result!.State.Should().Be(ReportStateEnum.Pending);
-        result.ActiveReportsCount.Should().Be(3);
+        result.ActiveReportsCount.Should().Be(2);
     }
 
     #endregion

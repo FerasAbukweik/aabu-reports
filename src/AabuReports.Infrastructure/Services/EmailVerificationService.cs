@@ -27,6 +27,8 @@ public class EmailVerificationService(
     {
         var user = await userManager.FindByNameAsync(studentId.Trim());
         if (user is null || await userManager.IsLockedOutAsync(user)) return Result.Failure(InvalidCode);
+        if (await redis.GetAsync<string>(Key(user.StudentId), cancellationToken) is null)
+            return Result.Failure("Verification expired. Please log in again to request a code.");
         return await SendAsync(user, cancellationToken);
     }
 
@@ -37,7 +39,8 @@ public class EmailVerificationService(
             return Result<ApplicationUser>.Failure(InvalidCode);
 
         var savedCode = await redis.GetAsync<string>(Key(user.StudentId), cancellationToken);
-        if (savedCode is null || savedCode != code)
+        if (savedCode is null) return Result<ApplicationUser>.Failure(InvalidCode);
+        if (savedCode != code)
         {
             await userManager.AccessFailedAsync(user);
             return Result<ApplicationUser>.Failure(InvalidCode);
@@ -54,9 +57,8 @@ public class EmailVerificationService(
         // random 6 digits number
         var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
         
-        // store code in redis
+        // Expiry starts when the new code is successfully sent and stored.
         var lifetime = TimeSpan.FromMinutes(configuration.GetValue("Email:VerificationCodeLifetimeMinutes", 5));
-        await redis.SetAsync(Key(user.StudentId), code, cancellationToken, lifetime, lifetime);
         
         try
         {
@@ -64,11 +66,11 @@ public class EmailVerificationService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await redis.RemoveAsync(Key(user.StudentId), cancellationToken);
             logger.LogError(exception, "{ServiceName}.{MethodName} failed to send verification email for student {StudentId}",
                 nameof(EmailVerificationService), nameof(SendAsync), user.StudentId);
             return Result.Failure("Could not send verification email. Please try again.", HttpStatusCode.ServiceUnavailable);
         }
+        await redis.SetAsync(Key(user.StudentId), code, cancellationToken, lifetime, lifetime);
         return Result.Success();
     }
 

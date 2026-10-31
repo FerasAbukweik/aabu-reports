@@ -24,8 +24,7 @@ public class TokenServiceTests : ServiceTestBase
 
         _tokenService = new TokenService(
             _accessTokenServiceMock.Object,
-            _refreshTokenServiceMock.Object,
-            CreateJwtOptions());
+            _refreshTokenServiceMock.Object);
     }
 
     [Fact]

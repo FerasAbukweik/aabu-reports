@@ -33,3 +33,8 @@ For a local mail catcher, disable SSL and use its SMTP port. Codes are never log
 Registration remains transactional: if email delivery fails, account creation rolls back.
 If verification expires or the dialog is closed after a successful registration, use login
 with the new credentials to request a fresh verification code.
+
+## Refresh cookies and logout
+
+The refresh cookie is scoped to `/api/auth`, so refresh and logout both receive it.
+Login ignores it. Logout remains `POST /api/auth/logout` and revokes the refresh token.

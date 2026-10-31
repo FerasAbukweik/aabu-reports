@@ -75,6 +75,16 @@ public class MessageServiceTests : ServiceTestBase
     }
 
     [Fact]
+    public async Task AddAsync_ShouldRejectOversizedMessagesBeforeQueryingOrSaving()
+    {
+        var result = await _messageService.AddAsync(Guid.NewGuid(), Guid.NewGuid(), new string('x', 501));
+
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        _userManagerMock.Verify(m => m.FindByIdAsync(It.IsAny<string>()), Times.Never);
+        _messageRepositoryMock.Verify(r => r.AddMessage(It.IsAny<Message>()), Times.Never);
+    }
+
+    [Fact]
     public async Task AddAsync_ShouldReturnNotFound_WhenSenderDoesNotExist()
     {
         // Arrange
@@ -105,6 +115,8 @@ public class MessageServiceTests : ServiceTestBase
         _userManagerMock.Setup(m => m.FindByIdAsync(sender.Id.ToString())).ReturnsAsync(sender);
         _messageRepositoryMock.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
+        _reportRepositoryMock.Setup(r => r.GetOwnerIdAsync(reportId, It.IsAny<CancellationToken>())).ReturnsAsync(sender.Id);
+
         // Act
         var result = await _messageService.AddAsync(reportId, sender.Id, "hello");
         LogAct(result);
@@ -114,7 +126,7 @@ public class MessageServiceTests : ServiceTestBase
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         result.ErrorMessage.Should().Be("no changes where applied to the DB");
 
-        _reportRepositoryMock.Verify(r => r.GetOwnerIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _reportRepositoryMock.Verify(r => r.GetOwnerIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -137,6 +149,8 @@ public class MessageServiceTests : ServiceTestBase
         result.IsSuccess.Should().BeFalse();
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
         result.ErrorMessage.Should().Be("Report not found");
+        _messageRepositoryMock.Verify(r => r.AddMessage(It.IsAny<Message>()), Times.Never);
+        _messageRepositoryMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -206,8 +220,10 @@ public class MessageServiceTests : ServiceTestBase
             Times.Once);
     }
 
-    [Fact]
-    public async Task AddAsync_ShouldStillSucceed_WhenCreatingTheNotificationFails()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AddAsync_ShouldStillSucceed_WhenCreatingTheNotificationFails(bool throwsException)
     {
         // Arrange
         var reportId = Guid.NewGuid();
@@ -219,7 +235,12 @@ public class MessageServiceTests : ServiceTestBase
         _messageRepositoryMock.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _reportRepositoryMock.Setup(r => r.GetOwnerIdAsync(reportId, It.IsAny<CancellationToken>())).ReturnsAsync(ownerId);
         _reportRepositoryMock.Setup(r => r.GetByIdAsync(reportId, It.IsAny<CancellationToken>())).ReturnsAsync((Report?)null);
-        SetupNotificationResult(Result<NotificationDto>.Failure("boom", HttpStatusCode.InternalServerError));
+        if (throwsException)
+            _notificationServiceMock.Setup(n => n.CreateAsync(It.IsAny<Guid>(), It.IsAny<NotificationType>(),
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("notification unavailable"));
+        else
+            SetupNotificationResult(Result<NotificationDto>.Failure("boom", HttpStatusCode.InternalServerError));
 
         // Act
         var result = await _messageService.AddAsync(reportId, sender.Id, "hello");

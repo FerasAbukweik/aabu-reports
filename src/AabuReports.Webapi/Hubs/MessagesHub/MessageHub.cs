@@ -1,4 +1,5 @@
 using AabuReports.Core.Abstractions.Services;
+using AabuReports.Core.Abstractions.Repositories;
 using AabuReports.Webapi.ExtensionMethods;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -10,12 +11,12 @@ namespace AabuReports.Webapi.Hubs.MessagesHub;
 /// every logged in user can join the chat of any existing report.
 /// </summary>
 [Authorize]
-public class MessageHub(IMessageService messageService) : Hub<IMessageClient>
+public class MessageHub(IMessageService messageService, IReportRepository reportRepository) : Hub<IMessageClient>
 {
     public override async Task OnConnectedAsync()
     {
         var reportId = GetReportId();
-        if (reportId is null)
+        if (reportId is null || await reportRepository.GetOwnerIdAsync(reportId.Value, Context.ConnectionAborted) is null)
         {
             Context.Abort();
             return;

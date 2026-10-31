@@ -111,6 +111,41 @@ describe('LoginSignup verification flow', () => {
     expect(router.navigate).not.toHaveBeenCalled();
   });
 
+  it('uses the student ID submitted before the user edits the form', () => {
+    const login = new Subject<unknown>();
+    auth.login.mockReturnValue(login);
+    auth.verifyEmail.mockReturnValue(of(null));
+    const { component } = createComponent();
+    component.onLogin();
+    component.loginForm.controls.studentId.setValue('9999999999');
+    login.next(null);
+    vi.advanceTimersByTime(1200);
+    component.onOtpCompleted('123456');
+    expect(auth.verifyEmail).toHaveBeenCalledWith('1234567890', '123456');
+  });
+
+  it('allows a new login request while waiting for an expired verification code', () => {
+    auth.login.mockReturnValue(of(null));
+    const { component } = createComponent();
+    component.onLogin();
+    vi.advanceTimersByTime(1200);
+    component.dismissVerificationNotice();
+    component.onLogin();
+    expect(auth.login).toHaveBeenCalledTimes(2);
+    expect(component.verificationNoticeOpen()).toBe(true);
+  });
+
+  it('allows switching forms while waiting for a verification code', () => {
+    auth.login.mockReturnValue(of(null));
+    const { component } = createComponent();
+    component.onLogin();
+    vi.advanceTimersByTime(1200);
+    component.dismissVerificationNotice();
+    component.setTab('register');
+    expect(component.activeTab()).toBe('register');
+    expect(component.verificationTab()).toBeNull();
+  });
+
   it('cancels the redirect when the component is destroyed', () => {
     auth.login.mockReturnValue(of(null));
     auth.verifyEmail.mockReturnValue(of(null));

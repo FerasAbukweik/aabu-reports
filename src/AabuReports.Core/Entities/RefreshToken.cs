@@ -30,6 +30,8 @@ public class RefreshToken
     
     // override
 
+    public override int GetHashCode() => Id.GetHashCode();
+
     public override bool Equals(object? obj)
     {
         if (obj is not RefreshToken other) return false;

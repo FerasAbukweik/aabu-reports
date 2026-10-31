@@ -9,7 +9,7 @@ public class AuthCookieSettings
     /// <summary>
     /// the refresh cookie is only sent to this path (refresh and logout endpoints)
     /// </summary>
-    public string RefreshTokenPath { get; set; } = "/api/auth/refresh";
+    public string RefreshTokenPath { get; set; } = "/api/auth";
 
     /// <summary>
     /// Lax works when the frontend and the api are on the same site (e.g. localhost:4200 and localhost:5299,

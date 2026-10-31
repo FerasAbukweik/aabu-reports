@@ -120,6 +120,8 @@ public class Report
         return $"Id: {this.Id}, ReportDate: {this.ReportDate}, Category: {this.Category}, State: {this.State}, Rate: {this.Rate}, LocationId: {this.LocationId}, UserId: {this.UserId}";
     }
 
+    public override int GetHashCode() => Id.GetHashCode();
+
     public override bool Equals(object? obj)
     {
         if (obj is not Report other) return false;

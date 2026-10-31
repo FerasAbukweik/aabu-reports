@@ -14,24 +14,45 @@ public static class AdminSeeder
 
         var roleName = nameof(AppRole.Admin);
         if (!await roleManager.RoleExistsAsync(roleName))
-            await roleManager.CreateAsync(new ApplicationRole { Name = roleName });
+            Check(await roleManager.CreateAsync(new ApplicationRole { Name = roleName }));
 
         var studentId = config["SeedAdmin:StudentId"];
-        var password = config["SeedAdmin:Password"];
-        if (string.IsNullOrEmpty(studentId) || string.IsNullOrEmpty(password)) return;
+        var password  = config["SeedAdmin:Password"];
+        var email     = config["SeedAdmin:Email"];
+        if (string.IsNullOrWhiteSpace(studentId) ||
+            string.IsNullOrWhiteSpace(password)  ||
+            string.IsNullOrWhiteSpace(email)) return;
 
-        if (await userManager.FindByNameAsync(studentId) is not null) return;
+        var fullName = config["SeedAdmin:FullName"] ?? "Admin";
+        var admin = await userManager.FindByNameAsync(studentId);
 
-        var admin = new ApplicationUser
+        if (admin is null)
         {
-            StudentId = studentId,
-            UserName = studentId,
-            FullName = config["SeedAdmin:FullName"] ?? "Admin",
-            Email = config["SeedAdmin:Email"] ?? "admin@gmail.com"
-        };
+            admin = new ApplicationUser
+            {
+                StudentId = studentId,
+                UserName = studentId,
+                FullName = fullName,
+                Email = email,
+                EmailConfirmed = true
+            };
+            Check(await userManager.CreateAsync(admin, password));
+        }
+        else if (admin.FullName != fullName || admin.Email != email)
+        {
+            admin.FullName = fullName;
+            admin.Email = email;
+            Check(await userManager.UpdateAsync(admin));
+        }
 
-        var result = await userManager.CreateAsync(admin, password);
-        if (result.Succeeded)
-            await userManager.AddToRoleAsync(admin, roleName);
+        if (!await userManager.IsInRoleAsync(admin, roleName))
+            Check(await userManager.AddToRoleAsync(admin, roleName));
+    }
+
+    private static void Check(IdentityResult r)
+    {
+        if (!r.Succeeded)
+            throw new InvalidOperationException("Admin seed failed: " +
+                                                string.Join("; ", r.Errors.Select(e => e.Description)));
     }
 }

@@ -74,6 +74,15 @@ public class EmailVerificationServiceTests : ServiceTestBase
     }
 
     [Fact]
+    public async Task Resend_ShouldNotStartNewLoginWithoutAnExistingCode()
+    {
+        var result = await _service.ResendAsync(_user.StudentId);
+
+        result.IsSuccess.Should().BeFalse();
+        _email.Verify(e => e.SendVerificationCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Verify_ShouldReturnUserWhenCodeMatchesAndLeaveCodeToExpire()
     {
         await _service.BeginAsync(_user);
@@ -94,6 +103,7 @@ public class EmailVerificationServiceTests : ServiceTestBase
         _cachedCode = null;
 
         (await _service.VerifyAsync(_user.StudentId, _sentCode!)).IsSuccess.Should().BeFalse();
+        _users.Verify(u => u.AccessFailedAsync(_user), Times.Never);
     }
 
     [Fact]
@@ -111,6 +121,20 @@ public class EmailVerificationServiceTests : ServiceTestBase
         _users.Setup(u => u.IsLockedOutAsync(_user)).ReturnsAsync(true);
 
         (await _service.VerifyAsync(_user.StudentId, _sentCode!)).IsSuccess.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Resend_ShouldPreservePreviousCode_WhenEmailDeliveryFails()
+    {
+        await _service.BeginAsync(_user);
+        var previousCode = _cachedCode;
+        _email.Setup(e => e.SendVerificationCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new System.Net.Mail.SmtpException("SMTP unavailable"));
+
+        var result = await _service.ResendAsync(_user.StudentId);
+
+        result.IsSuccess.Should().BeFalse();
+        _cachedCode.Should().Be(previousCode);
     }
 
     [Fact]

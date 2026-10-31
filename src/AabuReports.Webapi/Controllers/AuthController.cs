@@ -11,6 +11,7 @@ namespace AabuReports.Webapi.Controllers;
 public class AuthController(IAuthService authService, IEmailVerificationService verificationService) : ApiControllerBase
 {
     [HttpPost("login")]
+    [EnableRateLimiting("verification")]
     [AllowAnonymous]
     public async Task<IActionResult> Login(LoginDto loginDto, CancellationToken cancellationToken)
     {

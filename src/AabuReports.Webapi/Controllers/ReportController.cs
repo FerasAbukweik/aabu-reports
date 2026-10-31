@@ -59,7 +59,7 @@ public class ReportController(IReportService reportService) : ApiControllerBase
 
     /// <summary>
     /// one report, by its guid or by its short number ("968FCB28" / "#968FCB28").
-    /// A user gets only their own reports (404 for the others), an admin gets any report.
+    /// Every authenticated user can view a report.
     /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<ReportDto>> GetById([FromRoute] string id, CancellationToken cancellationToken)

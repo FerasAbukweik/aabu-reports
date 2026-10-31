@@ -97,8 +97,13 @@ export class LoginSignupComponent {
 
   // ---------- Tabs ----------
   setTab(tab: AuthTab): void {
-    if (this.verificationTab() || this.loginState() !== 'idle' || this.registerState() !== 'idle')
-      return;
+    if (tab === this.activeTab()) return;
+    if (this.loginState() !== 'idle' || this.registerState() !== 'idle' || this.resending()) return;
+    this.verificationTab.set(null);
+    this.verificationStudentId = '';
+    this.verificationNoticeOpen.set(false);
+    this.verificationError.set(null);
+    this.otp()?.clear();
     this.activeTab.set(tab);
   }
 
@@ -151,7 +156,7 @@ export class LoginSignupComponent {
       this.loginForm.markAllAsTouched();
       return;
     }
-    if (this.loginState() !== 'idle' || this.verificationTab()) return;
+    if (this.loginState() !== 'idle' || this.resending()) return;
 
     this.loginState.set('loading');
 
@@ -162,7 +167,7 @@ export class LoginSignupComponent {
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {
-          this.beginVerification('login');
+          this.beginVerification('login', studentId);
         },
         // the service already showed the error toast, only reset the button
         error: () => this.loginState.set('idle'),
@@ -174,7 +179,7 @@ export class LoginSignupComponent {
       this.registerForm.markAllAsTouched();
       return;
     }
-    if (this.registerState() !== 'idle' || this.verificationTab()) return;
+    if (this.registerState() !== 'idle' || this.resending()) return;
 
     this.registerState.set('loading');
 
@@ -185,7 +190,7 @@ export class LoginSignupComponent {
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {
-          this.beginVerification('register');
+          this.beginVerification('register', studentId);
         },
         // the service already showed the error toast, only reset the button
         error: () => this.registerState.set('idle'),
@@ -203,12 +208,10 @@ export class LoginSignupComponent {
     return tab === 'login' ? this.loginState : this.registerState;
   }
 
-  private beginVerification(tab: AuthTab): void {
+  private beginVerification(tab: AuthTab, studentId: string): void {
     this.verificationError.set(null);
     this.verificationTab.set(tab);
-    this.verificationStudentId = (
-      tab === 'login' ? this.loginForm : this.registerForm
-    ).controls.studentId.value.trim();
+    this.verificationStudentId = studentId.trim();
     this.otp()?.clear();
     this.otp()?.restartTimer();
     this.verificationNoticeOpen.set(true);

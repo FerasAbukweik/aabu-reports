@@ -78,8 +78,7 @@ public class ReportService(
             ? r => r.Id == guid
             : r => r.Id.ToString().Replace("-", "").StartsWith(text);
 
-        // the owner check is part of the query: another user's report is "not found" (not revealed),
-        // and a short number can only clash with the user's own reports
+        // Reports are visible to every authenticated user; short numbers must be unambiguous.
         var matches = await reportRepository.FilterAsync(
             byId,
             [r => r.Images, r => r.Location],
@@ -270,9 +269,17 @@ public class ReportService(
     /// <summary> a notification that fails must not fail the report action that already succeeded, so it is only logged </summary>
     private async Task NotifyOwnerAsync(Guid userId, NotificationType type, string message, string? subject, Guid reportId, CancellationToken cancellationToken)
     {
-        var result = await notificationService.CreateAsync(userId, type, message, subject, reportId, cancellationToken);
-        if (!result.IsSuccess)
-            logger.LogWarning("{ServiceName} could not create a {NotificationType} notification for report {ReportId}: {Error}",
-                nameof(ReportService), type, reportId, result.ErrorMessage);
+        try
+        {
+            var result = await notificationService.CreateAsync(userId, type, message, subject, reportId, cancellationToken);
+            if (!result.IsSuccess)
+                logger.LogWarning("{ServiceName} could not create a {NotificationType} notification for report {ReportId}: {Error}",
+                    nameof(ReportService), type, reportId, result.ErrorMessage);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "{ServiceName}.{MethodName} failed to notify the owner of report {ReportId}",
+                nameof(ReportService), nameof(NotifyOwnerAsync), reportId);
+        }
     }
 }

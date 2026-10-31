@@ -3,7 +3,6 @@ import { RouterOutlet } from '@angular/router';
 import { AuthService } from './core/services/api-services/auth.service';
 import { NotificationService } from './core/services/api-services/notification.service';
 import { ToastComponent } from './shared/components/toast/toast.component';
-import { HttpClient } from '@angular/common/http';
 
 @Component({
   imports: [RouterOutlet, ToastComponent],

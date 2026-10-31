@@ -709,8 +709,10 @@ public class ReportServiceTests : ServiceTestBase
             Times.Never);
     }
 
-    [Fact]
-    public async Task UpdateStateAsync_ShouldStillSucceed_WhenNotificationFails()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateStateAsync_ShouldStillSucceed_WhenNotificationFails(bool throwsException)
     {
         // Arrange
         var report = CreateReport(ReportStateEnum.Fixed);
@@ -720,7 +722,12 @@ public class ReportServiceTests : ServiceTestBase
         _reportRepositoryMock.Setup(r => r.UpdateState(dto, It.IsAny<CancellationToken>())).ReturnsAsync(report);
         _locationRepositoryMock.Setup(r => r.GetByIdAsync(report.LocationId, It.IsAny<CancellationToken>())).ReturnsAsync((Location?)null);
         SetupSave(true);
-        SetupNotification(Result<NotificationDto>.Failure("boom", HttpStatusCode.InternalServerError));
+        if (throwsException)
+            _notificationServiceMock.Setup(n => n.CreateAsync(It.IsAny<Guid>(), It.IsAny<NotificationType>(),
+                It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("notification unavailable"));
+        else
+            SetupNotification(Result<NotificationDto>.Failure("boom", HttpStatusCode.InternalServerError));
 
         // Act
         var result = await _reportService.UpdateStateAsync(dto);
