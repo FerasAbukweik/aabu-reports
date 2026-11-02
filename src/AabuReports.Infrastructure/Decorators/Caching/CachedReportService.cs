@@ -3,7 +3,6 @@ using AabuReports.Core.Dtos.LazyLoading;
 using AabuReports.Core.Dtos.Reports;
 using AabuReports.Core.Results;
 using AabuReports.Infrastructure.Caching;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
@@ -16,7 +15,7 @@ namespace AabuReports.Infrastructure.Services;
 /// Every write clears the reports cache AND the locations cache (a location's status and count come from its reports).
 /// </summary>
 public class CachedReportService(
-    [FromKeyedServices("inner")] IReportService innerService,
+    IReportService innerService,
     IRedisService redisService,
     ILogger<CachedReportService> logger) : IReportService
 {

@@ -32,8 +32,7 @@ public class AccountServiceTests : ServiceTestBase
         _accountService = new AccountService(
             _userManagerMock.Object,
             _roleManagerMock.Object,
-            _verificationMock.Object,
-            NullLogger<AccountService>.Instance);
+            _verificationMock.Object);
     }
 
     private RegisterDto CreateRegisterDto() => new()

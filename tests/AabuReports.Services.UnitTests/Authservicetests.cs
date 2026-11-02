@@ -37,7 +37,6 @@ public class AuthServiceTests : ServiceTestBase
             _tokenServiceMock.Object,
             _refreshTokenServiceMock.Object,
             _cookieServiceMock.Object,
-            NullLogger<AuthService>.Instance,
             _verificationMock.Object);
     }
 

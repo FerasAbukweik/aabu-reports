@@ -1,9 +1,9 @@
 using AabuReports.Core;
 using AabuReports.Infrastructure;
+using AabuReports.Webapi;
 using AabuReports.Webapi.ExtensionMethods;
 using AabuReports.Webapi.Hubs;
 using AabuReports.Webapi.Middlewares;
-using AabuReports.Webapi;
 using AabuReports.Webapi.Hubs.AppHub;
 using Scalar.AspNetCore;
 using Serilog;

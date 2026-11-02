@@ -21,12 +21,14 @@ internal static class ResultLoggingExtensions
         var result = await task;
         if (result.IsSuccess) return result;
 
+        var error = result.LogDetails is null ? result.ErrorMessage : $"{result.ErrorMessage} ({result.LogDetails})";
+
         if (result.StatusCode >= HttpStatusCode.InternalServerError)
             logger.LogError("{ServiceName}.{MethodName} failed with {StatusCode}: {Error}",
-                serviceName, methodName, (int)result.StatusCode, result.ErrorMessage);
+                serviceName, methodName, (int)result.StatusCode, error);
         else if (logClientErrors)
             logger.LogWarning("{ServiceName}.{MethodName} failed with {StatusCode}: {Error}",
-                serviceName, methodName, (int)result.StatusCode, result.ErrorMessage);
+                serviceName, methodName, (int)result.StatusCode, error);
 
         return result;
     }

@@ -4,7 +4,6 @@ using AabuReports.Core.Dtos.Auth;
 using AabuReports.Core.Entities.Identity;
 using AabuReports.Core.Results;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
@@ -13,7 +12,6 @@ public class AuthService(
     ITokenService tokenService,
     IRefreshTokenService refreshTokenService,
     ICookieService cookieService,
-    ILogger<AuthService> logger,
     IEmailVerificationService verificationService) : IAuthService
 {
     private const string LockedOutMessage = "Account is temporarily locked, try again later";
@@ -27,20 +25,16 @@ public class AuthService(
             return Result.Failure(invalidCredentialsMessage, HttpStatusCode.Unauthorized);
 
         if (await userManager.IsLockedOutAsync(user))
-        {
-            logger.LogWarning("{ServiceName}.{MethodName} login attempt for locked out user with Id: {UserId}",
-                nameof(AuthService), nameof(Login), user.Id.ToString());
-            return Result.Failure(LockedOutMessage, HttpStatusCode.TooManyRequests);
-        }
+            return Result.Failure(LockedOutMessage, HttpStatusCode.TooManyRequests,
+                $"login attempt for locked out user with Id: {user.Id}");
 
         if (!await userManager.CheckPasswordAsync(user, loginDto.Password))
         {
             await userManager.AccessFailedAsync(user);
-            logger.LogWarning("{ServiceName}.{MethodName} wrong password for user with Id: {UserId}",
-                nameof(AuthService), nameof(Login), user.Id.ToString());
-            return Result.Failure(invalidCredentialsMessage, HttpStatusCode.Unauthorized);
+            return Result.Failure(invalidCredentialsMessage, HttpStatusCode.Unauthorized,
+                $"wrong password for user with Id: {user.Id}");
         }
-
+        
         return await verificationService.BeginAsync(user, cancellationToken);
     }
 

@@ -1,20 +1,20 @@
 using AabuReports.Core.Abstractions.Services;
-using AabuReports.Core.Results;
-using AabuReports.Infrastructure.Logging;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using AabuReports.Core.Dtos.LazyLoading;
 using AabuReports.Core.Dtos.Notifications;
 using AabuReports.Core.Enums;
+using AabuReports.Core.Results;
+using AabuReports.Infrastructure.Logging;
+using AabuReports.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
 
-namespace AabuReports.Infrastructure.Services.Logging;
+namespace AabuReports.Infrastructure.Decorators.Logging;
 
 /// <summary>
 /// logs the failed results of <see cref="NotificationService"/>.
 /// callers that must not fail because of a notification (reports, messages) swallow what this rethrows, so the exception is logged here
 /// </summary>
 public class LoggingNotificationService(
-    [FromKeyedServices("inner")] INotificationService innerService,
+    INotificationService innerService,
     ILogger<NotificationService> logger) : INotificationService
 {
     private const string Name = nameof(NotificationService);

@@ -27,8 +27,7 @@ public class NotificationServiceTests : ServiceTestBase
 
         _notificationService = new NotificationService(
             _repositoryMock.Object,
-            _pusherMock.Object,
-            NullLogger<NotificationService>.Instance);
+            _pusherMock.Object);
     }
 
     #region CreateAsync

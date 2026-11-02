@@ -6,14 +6,12 @@ using AabuReports.Core.Dtos.Notifications;
 using AabuReports.Core.Entities;
 using AabuReports.Core.Enums;
 using AabuReports.Core.Results;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
 public class NotificationService(
     INotificationRepository notificationRepository,
-    INotificationPusher notificationPusher,
-    ILogger<NotificationService> logger) : INotificationService
+    INotificationPusher notificationPusher) : INotificationService
 {
     public async Task<Result<NotificationDto>> CreateAsync(
         Guid userId,
@@ -49,10 +47,9 @@ public class NotificationService(
         {
             await notificationPusher.PushAsync(userId, dto, cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "{ServiceName}.{MethodName} failed to push notification {NotificationId} to user {UserId}",
-                nameof(NotificationService), nameof(CreateAsync), notification.Id, userId);
+            // swallowed on purpose, LoggingNotificationPusher already logged it
         }
 
         return Result<NotificationDto>.Success(dto, HttpStatusCode.Created);

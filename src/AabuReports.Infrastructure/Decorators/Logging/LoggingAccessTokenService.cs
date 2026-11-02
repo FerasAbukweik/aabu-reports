@@ -1,16 +1,15 @@
 using AabuReports.Core.Abstractions.Services;
-using AabuReports.Core.Results;
-using AabuReports.Infrastructure.Logging;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using AabuReports.Core.Dtos.Auth;
 using AabuReports.Core.Entities.Identity;
+using AabuReports.Core.Results;
+using AabuReports.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
 
-namespace AabuReports.Infrastructure.Services.Logging;
+namespace AabuReports.Infrastructure.Decorators.Logging;
 
 /// <summary> logs the failed results of <see cref="AccessTokenService"/>, every failure here is unexpected so 4xx are logged too </summary>
 public class LoggingAccessTokenService(
-    [FromKeyedServices("inner")] IAccessTokenService innerService,
+    IAccessTokenService innerService,
     ILogger<AccessTokenService> logger) : IAccessTokenService
 {
     public async Task<Result<AccessTokenDto>> GenerateAccessTokenAsync(ApplicationUser user, CancellationToken cancellationToken = default)

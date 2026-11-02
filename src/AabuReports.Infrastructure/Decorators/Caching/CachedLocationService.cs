@@ -2,7 +2,6 @@ using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Dtos.Locations;
 using AabuReports.Core.Results;
 using AabuReports.Infrastructure.Caching;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
@@ -13,7 +12,7 @@ namespace AabuReports.Infrastructure.Services;
 /// so every write clears the locations AND the reports cache.
 /// </summary>
 public class CachedLocationService(
-    [FromKeyedServices("inner")] ILocationService innerService,
+    ILocationService innerService,
     IRedisService redisService,
     ILogger<CachedLocationService> logger) : ILocationService
 {

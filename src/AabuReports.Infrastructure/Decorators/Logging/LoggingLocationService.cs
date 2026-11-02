@@ -1,15 +1,15 @@
 using AabuReports.Core.Abstractions.Services;
+using AabuReports.Core.Dtos.Locations;
 using AabuReports.Core.Results;
 using AabuReports.Infrastructure.Logging;
-using Microsoft.Extensions.DependencyInjection;
+using AabuReports.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
-using AabuReports.Core.Dtos.Locations;
 
-namespace AabuReports.Infrastructure.Services.Logging;
+namespace AabuReports.Infrastructure.Decorators.Logging;
 
 /// <summary> logs the failed results of <see cref="LocationService"/> </summary>
 public class LoggingLocationService(
-    [FromKeyedServices("core")] ILocationService innerService,
+    ILocationService innerService,
     ILogger<LocationService> logger) : ILocationService
 {
     private const string Name = nameof(LocationService);

@@ -1,16 +1,16 @@
 using AabuReports.Core.Abstractions.Services;
-using AabuReports.Core.Results;
-using AabuReports.Infrastructure.Logging;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using AabuReports.Core.Dtos.LazyLoading;
 using AabuReports.Core.Dtos.Reports;
+using AabuReports.Core.Results;
+using AabuReports.Infrastructure.Logging;
+using AabuReports.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
 
-namespace AabuReports.Infrastructure.Services.Logging;
+namespace AabuReports.Infrastructure.Decorators.Logging;
 
 /// <summary> logs the failed results of <see cref="ReportService"/> </summary>
 public class LoggingReportService(
-    [FromKeyedServices("core")] IReportService innerService,
+    IReportService innerService,
     ILogger<ReportService> logger) : IReportService
 {
     private const string Name = nameof(ReportService);

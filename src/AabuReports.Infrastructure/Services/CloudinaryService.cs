@@ -1,25 +1,19 @@
+using System.Net;
 using AabuReports.Core.Abstractions.Services;
+using Result = AabuReports.Core.Results.Result;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
 public class CloudinaryService : ICloudinaryService
 {
     private readonly Cloudinary _cloudinary;
-    private readonly ILogger<CloudinaryService> _logger;
-    
-    
-    public CloudinaryService(
-        IConfiguration configuration,
-        ILogger<CloudinaryService> logger
-        )
+
+    public CloudinaryService(IConfiguration configuration)
     {
-        _logger = logger;
-        
         var account = new Account(
             configuration["CloudinarySettings:CloudName"], 
             configuration["CloudinarySettings:ApiKey"],
@@ -40,48 +34,22 @@ public class CloudinaryService : ICloudinaryService
             Folder = "aabu_reports"
         };
         
-        var result = await _cloudinary.UploadAsync(uploadParams);
-
-        if (result.Error != null)
-        {
-            _logger.LogError("{ServiceName}.{MethodName} failed uploading image\nErrors: {errors}",
-                nameof(CloudinaryService), nameof(Upload), result.Error.Message);
-        }
-        else
-        {
-            _logger.LogInformation("{ServiceName}.{MethodName} image was uploaded with publicId of {publicId}",
-                nameof(CloudinaryService), nameof(Upload), result.PublicId);
-        }
-
-        return result;
+        return await _cloudinary.UploadAsync(uploadParams);
     }
 
     public async Task<DeletionResult> Delete(string publicId)
     {
         var deletionParams = new DeletionParams(publicId);
 
-        var result = await _cloudinary.DestroyAsync(deletionParams);
-
-        if (result.Error != null)
-        {
-            _logger.LogError("{ServiceName}.{MethodName} failed deleting image\nErrors: {errors}",
-                nameof(CloudinaryService), nameof(Delete), result.Error.Message);
-        }
-        else
-        {
-            _logger.LogInformation("{ServiceName}.{MethodName} image with public id of {publicId} was deleted",
-                nameof(CloudinaryService), nameof(Delete), publicId);
-        }
-        
-        return result;
+        return await _cloudinary.DestroyAsync(deletionParams);
     }
 
-    public async Task<bool> DeleteMany(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken = default)
+    public async Task<Result> DeleteMany(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken = default)
     {
         // Cloudinary accepts at most 100 public ids per delete request
         const int batchSize = 100;
 
-        var allDeleted = true;
+        var errors = new List<string>();
 
         foreach (var batch in publicIds.Distinct().Chunk(batchSize))
         {
@@ -94,18 +62,12 @@ public class CloudinaryService : ICloudinaryService
                 cancellationToken);
 
             if (result.Error != null)
-            {
-                allDeleted = false;
-                _logger.LogError("{ServiceName}.{MethodName} failed deleting {count} images\nErrors: {errors}",
-                    nameof(CloudinaryService), nameof(DeleteMany), batch.Length, result.Error.Message);
-            }
-            else
-            {
-                _logger.LogInformation("{ServiceName}.{MethodName} deleted {count} images",
-                    nameof(CloudinaryService), nameof(DeleteMany), batch.Length);
-            }
+                errors.Add($"failed deleting {batch.Length} images: {result.Error.Message}");
         }
 
-        return allDeleted;
+        // the error is internal (Cloudinary's messages), the callers must not send it to the client
+        return errors.Count == 0
+            ? Result.Success()
+            : Result.Failure(string.Join("; ", errors), HttpStatusCode.InternalServerError);
     }
 }

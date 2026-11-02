@@ -4,7 +4,6 @@ using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Entities.Identity;
 using AabuReports.Core.Results;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 
 namespace AabuReports.Infrastructure.Services;
@@ -13,8 +12,7 @@ public class EmailVerificationService(
     IRedisService redis,
     IEmailService emailService,
     IConfiguration configuration,
-    UserManager<ApplicationUser> userManager,
-    ILogger<EmailVerificationService> logger) : IEmailVerificationService
+    UserManager<ApplicationUser> userManager) : IEmailVerificationService
 {
     private const string InvalidCode = "Invalid or expired verification code. Request a new code and try again.";
 
@@ -66,9 +64,8 @@ public class EmailVerificationService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger.LogError(exception, "{ServiceName}.{MethodName} failed to send verification email for student {StudentId}",
-                nameof(EmailVerificationService), nameof(SendAsync), user.StudentId);
-            return Result.Failure("Could not send verification email. Please try again.", HttpStatusCode.ServiceUnavailable);
+            return Result.Failure("Could not send verification email. Please try again.", HttpStatusCode.ServiceUnavailable,
+                $"failed to send verification email for student {user.StudentId}: {exception}");
         }
         await redis.SetAsync(Key(user.StudentId), code, cancellationToken, lifetime, lifetime);
         return Result.Success();

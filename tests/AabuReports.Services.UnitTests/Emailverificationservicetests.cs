@@ -47,7 +47,7 @@ public class EmailVerificationServiceTests : ServiceTestBase
             ["Email:VerificationCodeLifetimeMinutes"] = "7"
         }).Build();
         _service = new EmailVerificationService(_redis.Object, _email.Object, configuration,
-            _users.Object, NullLogger<EmailVerificationService>.Instance);
+            _users.Object);
     }
 
     [Fact]

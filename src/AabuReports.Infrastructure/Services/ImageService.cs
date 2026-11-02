@@ -5,14 +5,12 @@ using AabuReports.Core.Dtos.Images;
 using AabuReports.Core.Entities;
 using AabuReports.Core.Results;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
 public class ImageService(
     IImageRepository imageRepository,
-    ICloudinaryService cloudinaryService,
-    ILogger<ImageService> logger) : IImageService
+    ICloudinaryService cloudinaryService) : IImageService
 {
     private const string ImageNotFoundMessage = "Image not found";
     private const string NoImagesMessage = "No images were sent";
@@ -40,9 +38,9 @@ public class ImageService(
         if (uploadedPublicIds.Count != uploads.Length)
         {
             // one of the uploads failed, so don't keep the ones that succeeded
-            await RollbackUploadsAsync(uploadedPublicIds);
+            var rollbackFailure = await RollbackUploadsAsync(uploadedPublicIds);
 
-            return Result<IReadOnlyList<ImageDto>>.Failure(CloudinaryUploadFailedMessage, HttpStatusCode.InternalServerError);
+            return Result<IReadOnlyList<ImageDto>>.Failure(CloudinaryUploadFailedMessage, HttpStatusCode.InternalServerError, rollbackFailure);
         }
 
         var newImages = uploads.Select(u => new Image
@@ -56,11 +54,8 @@ public class ImageService(
 
         if (!await imageRepository.SaveChangesAsync(cancellationToken))
         {
-            string errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} {error}",
-                nameof(ImageService), nameof(UploadForReportAsync), errorMessage);
-            await RollbackUploadsAsync(uploadedPublicIds);
-            return Result<IReadOnlyList<ImageDto>>.Failure(errorMessage, HttpStatusCode.InternalServerError);
+            var rollbackFailure = await RollbackUploadsAsync(uploadedPublicIds);
+            return Result<IReadOnlyList<ImageDto>>.Failure("no changes where applied to the DB", HttpStatusCode.InternalServerError, rollbackFailure);
         }
         
         return Result<IReadOnlyList<ImageDto>>.Success(
@@ -96,8 +91,9 @@ public class ImageService(
             if (orphans.Count == 0) return Result.Success();
 
             // Cloudinary first: if it fails nothing is removed from the DB, so the same orphans are retried on the next run
-            if (!await cloudinaryService.DeleteMany(orphans.Select(i => i.PublicId).ToList(), cancellationToken))
-                return Result.Failure(CloudinaryDeleteFailedMessage, HttpStatusCode.InternalServerError);
+            var deleted = await cloudinaryService.DeleteMany(orphans.Select(i => i.PublicId).ToList(), cancellationToken);
+            if (!deleted.IsSuccess)
+                return Result.Failure(CloudinaryDeleteFailedMessage, HttpStatusCode.InternalServerError, deleted.ErrorMessage);
 
             // same ids that were sent to Cloudinary, so an image that became an orphan in the meantime is not removed from the DB only
             var ids = orphans.Select(i => i.Id).ToList();
@@ -110,15 +106,16 @@ public class ImageService(
 
     // private
 
-    private async Task RollbackUploadsAsync(IReadOnlyCollection<string> publicIds)
+    /// <returns> null if the rollback worked, otherwise the details for the logs (the public ids that stayed on Cloudinary) </returns>
+    private async Task<string?> RollbackUploadsAsync(IReadOnlyCollection<string> publicIds)
     {
-        if (publicIds.Count == 0) return;
+        if (publicIds.Count == 0) return null;
 
         // CancellationToken.None: the rollback must run even if the request was cancelled
-        if (!await cloudinaryService.DeleteMany(publicIds, CancellationToken.None))
-        {
-            logger.LogError("{ServiceName} failed rolling back uploaded images, public ids: {publicIds}",
-                nameof(ImageService), string.Join(", ", publicIds));
-        }
+        var deleted = await cloudinaryService.DeleteMany(publicIds, CancellationToken.None);
+
+        return deleted.IsSuccess
+            ? null
+            : $"failed rolling back uploaded images, public ids: {string.Join(", ", publicIds)}. Errors: {deleted.ErrorMessage}";
     }
 }

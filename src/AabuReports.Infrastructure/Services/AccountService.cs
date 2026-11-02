@@ -6,15 +6,13 @@ using AabuReports.Core.Enums;
 using AabuReports.Core.Results;
 using AabuReports.Infrastructure.ExtensionMethods;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
 public class AccountService(
     UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
-    IEmailVerificationService verificationService,
-    ILogger<AccountService> logger) : IAccountService
+    IEmailVerificationService verificationService) : IAccountService
 {
     /// <remarks>
     /// the endpoint calling this must use [Transactional], so the user is rolled back if adding the role fails
@@ -47,12 +45,8 @@ public class AccountService(
 
         var addRoleResult = await userManager.AddToRoleAsync(user, AppRole.Student.ToString());
         if (!addRoleResult.Succeeded)
-        {
-            logger.LogError("{ServiceName}.{MethodName} failed adding role to user with Id: {UserId}. Errors: {Errors}",
-                nameof(AccountService), nameof(Register), user.Id.ToString(), addRoleResult.DescribeErrors());
-
-            return Result.Failure("Failed to complete registration", HttpStatusCode.InternalServerError);
-        }
+            return Result.Failure("Failed to complete registration", HttpStatusCode.InternalServerError,
+                $"failed adding role to user with Id: {user.Id}. Errors: {addRoleResult.DescribeErrors()}");
         
         var verification = await verificationService.BeginAsync(user, cancellationToken);
         return verification.IsSuccess ? Result.Success(HttpStatusCode.Created) : verification;
@@ -87,9 +81,7 @@ public class AccountService(
         if (createResult.Succeeded || await roleManager.RoleExistsAsync(roleName))
             return Result.Success();
 
-        logger.LogError("{ServiceName}.{MethodName} failed creating role {RoleName}. Errors: {Errors}",
-            nameof(AccountService), nameof(EnsureRoleExistsAsync), roleName, createResult.DescribeErrors());
-
-        return Result.Failure("Failed to complete registration", HttpStatusCode.InternalServerError);
+        return Result.Failure("Failed to complete registration", HttpStatusCode.InternalServerError,
+            $"failed creating role {roleName}. Errors: {createResult.DescribeErrors()}");
     }
 }

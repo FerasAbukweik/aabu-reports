@@ -1,3 +1,4 @@
+using AabuReports.Core.Results;
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Http;
 
@@ -11,6 +12,6 @@ public interface ICloudinaryService
     /// <summary>
     /// deletes many images with as few Cloudinary requests as possible (100 images per request)
     /// </summary>
-    /// <returns> true if every request succeeded (images that are already gone count as deleted) </returns>
-    Task<bool> DeleteMany(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken = default);
+    /// <returns> success if every request succeeded (images that are already gone count as deleted), otherwise a failure whose error is the Cloudinary errors (internal, never send it to the client) </returns>
+    Task<Result> DeleteMany(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken = default);
 }

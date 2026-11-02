@@ -7,9 +7,9 @@ using AabuReports.Infrastructure.Services;
 using CloudinaryDotNet.Actions;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit.Abstractions;
+using Result = AabuReports.Core.Results.Result;
 
 namespace AabuReports.Services.UnitTests;
 
@@ -26,8 +26,7 @@ public class ImageServiceTests : ServiceTestBase
 
         _imageService = new ImageService(
             _imageRepositoryMock.Object,
-            _cloudinaryMock.Object,
-            NullLogger<ImageService>.Instance);
+            _cloudinaryMock.Object);
     }
 
     private static ImageUploadResult SuccessfulUpload(string publicId) => new()
@@ -44,6 +43,10 @@ public class ImageServiceTests : ServiceTestBase
         _cloudinaryMock.Setup(c => c.Upload(file.Object)).ReturnsAsync(upload);
         return file;
     }
+
+    private void SetupDeleteMany(Result result) =>
+        _cloudinaryMock.Setup(c => c.DeleteMany(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result);
 
     #region UploadForReportAsync
 
@@ -100,8 +103,7 @@ public class ImageServiceTests : ServiceTestBase
         var bad = SetupUpload(FailedUpload());
         var images = new List<IFormFile> { good.Object, bad.Object };
 
-        _cloudinaryMock.Setup(c => c.DeleteMany(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        SetupDeleteMany(Result.Success());
 
         // Act
         var result = await _imageService.UploadForReportAsync(reportId, images);
@@ -111,12 +113,39 @@ public class ImageServiceTests : ServiceTestBase
         result.IsSuccess.Should().BeFalse();
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         result.ErrorMessage.Should().Be("Failed to upload the images to the image storage");
+        result.LogDetails.Should().BeNull(); // the rollback worked, nothing extra to log
 
         // only the image that did upload is removed from Cloudinary, and the DB is never touched
         _cloudinaryMock.Verify(
             c => c.DeleteMany(It.Is<IReadOnlyCollection<string>>(ids => ids.SequenceEqual(new[] { "pub-1" })), CancellationToken.None),
             Times.Once);
         _imageRepositoryMock.Verify(r => r.AddRange(It.IsAny<IEnumerable<Image>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UploadForReportAsync_ShouldPutTheRollbackFailureInLogDetailsOnly_WhenTheRollbackFails()
+    {
+        // Arrange
+        var reportId = Guid.NewGuid();
+        var images = new List<IFormFile>
+        {
+            SetupUpload(SuccessfulUpload("pub-1")).Object,
+            SetupUpload(FailedUpload()).Object
+        };
+
+        SetupDeleteMany(Result.Failure("cloudinary down", HttpStatusCode.InternalServerError));
+
+        // Act
+        var result = await _imageService.UploadForReportAsync(reportId, images);
+        LogAct(result);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+
+        // the client message stays generic, the ids that stayed on Cloudinary are only for the logs
+        result.ErrorMessage.Should().Be("Failed to upload the images to the image storage");
+        result.LogDetails.Should().Contain("pub-1").And.Contain("cloudinary down");
     }
 
     [Fact]
@@ -146,8 +175,7 @@ public class ImageServiceTests : ServiceTestBase
         var images = new List<IFormFile> { SetupUpload(SuccessfulUpload("pub-1")).Object };
 
         _imageRepositoryMock.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _cloudinaryMock.Setup(c => c.DeleteMany(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        SetupDeleteMany(Result.Success());
 
         // Act
         var result = await _imageService.UploadForReportAsync(reportId, images);
@@ -157,6 +185,7 @@ public class ImageServiceTests : ServiceTestBase
         result.IsSuccess.Should().BeFalse();
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         result.ErrorMessage.Should().Be("no changes where applied to the DB");
+        result.LogDetails.Should().BeNull();
 
         _cloudinaryMock.Verify(
             c => c.DeleteMany(It.Is<IReadOnlyCollection<string>>(ids => ids.SequenceEqual(new[] { "pub-1" })), CancellationToken.None),
@@ -288,8 +317,7 @@ public class ImageServiceTests : ServiceTestBase
         LogArrange(nameof(orphans), orphans);
         SetupOrphanBatches(orphans);
 
-        _cloudinaryMock.Setup(c => c.DeleteMany(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        SetupDeleteMany(Result.Failure("cloudinary down", HttpStatusCode.InternalServerError));
 
         // Act
         var result = await _imageService.DeleteOrphanedAsync();
@@ -299,6 +327,9 @@ public class ImageServiceTests : ServiceTestBase
         result.IsSuccess.Should().BeFalse();
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         result.ErrorMessage.Should().Be("Failed to delete the images from the image storage");
+
+        // Cloudinary's own error is only kept for the logs
+        result.LogDetails.Should().Be("cloudinary down");
 
         _imageRepositoryMock.Verify(
             r => r.ExecuteRemoveAsync(It.IsAny<Expression<Func<Image, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -312,8 +343,7 @@ public class ImageServiceTests : ServiceTestBase
         LogArrange(nameof(orphans), orphans);
         SetupOrphanBatches(orphans);
 
-        _cloudinaryMock.Setup(c => c.DeleteMany(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        SetupDeleteMany(Result.Success());
         _imageRepositoryMock.Setup(r => r.ExecuteRemoveAsync(It.IsAny<Expression<Func<Image, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3);
 
@@ -345,8 +375,7 @@ public class ImageServiceTests : ServiceTestBase
         var firstBatch = CreateOrphans(100);
         SetupOrphanBatches(firstBatch, new List<Image>());
 
-        _cloudinaryMock.Setup(c => c.DeleteMany(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        SetupDeleteMany(Result.Success());
         _imageRepositoryMock.Setup(r => r.ExecuteRemoveAsync(It.IsAny<Expression<Func<Image, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(100);
 

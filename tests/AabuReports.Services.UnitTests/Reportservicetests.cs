@@ -39,8 +39,7 @@ public class ReportServiceTests : ServiceTestBase
             _reportRepositoryMock.Object,
             _locationRepositoryMock.Object,
             _imageServiceMock.Object,
-            _notificationServiceMock.Object,
-            NullLogger<ReportService>.Instance);
+            _notificationServiceMock.Object);
     }
 
     // ---------- helpers ----------
