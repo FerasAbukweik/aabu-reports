@@ -6,14 +6,12 @@ using AabuReports.Core.Entities;
 using AabuReports.Core.Options;
 using AabuReports.Core.Results;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AabuReports.Infrastructure.Services;
 
 public class RefreshTokenService(
     IRefreshTokenRepository refreshTokenRepository,
-    ILogger<RefreshTokenService> logger,
     IOptions<JwtOptions> jwtOptions) : IRefreshTokenService
 {
     public async Task<Result<RefreshToken>> GenerateRefreshTokenAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -32,9 +30,7 @@ public class RefreshTokenService(
         // save changes to DB
         if (!await refreshTokenRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(RefreshTokenService), nameof(GenerateRefreshTokenAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<RefreshToken>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }

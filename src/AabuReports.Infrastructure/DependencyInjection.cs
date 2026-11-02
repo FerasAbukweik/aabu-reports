@@ -4,6 +4,7 @@ using AabuReports.Core.Entities.Identity;
 using AabuReports.Infrastructure.BackGroundServices;
 using AabuReports.Infrastructure.Repositories;
 using AabuReports.Infrastructure.Services;
+using AabuReports.Infrastructure.Services.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
@@ -50,22 +51,30 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddSingleton<IRedisService, RedisService>();
 
         // add services
-        services.AddScoped<IAccessTokenService, AccessTokenService>();
-        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+        // every service with failure logging is registered with the "inner" key, and its logging decorator takes its place.
+        // a service that is also cached is registered with the "core" key, then logging -> "inner", then the cached decorator takes its place
+        services.AddKeyedScoped<IAccessTokenService, AccessTokenService>("inner");
+        services.AddScoped<IAccessTokenService, LoggingAccessTokenService>();
+        services.AddKeyedScoped<IRefreshTokenService, RefreshTokenService>("inner");
+        services.AddScoped<IRefreshTokenService, LoggingRefreshTokenService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAccountService, AccountService>();
-        services.AddScoped<IAuthService, AuthService>();
+        services.AddKeyedScoped<IAuthService, AuthService>("inner");
+        services.AddScoped<IAuthService, LoggingAuthService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
-        // cached services: the real service is registered with the "inner" key, the cached decorator takes its place
-        services.AddKeyedScoped<ILocationService, LocationService>("inner");
+        services.AddKeyedScoped<ILocationService, LocationService>("core");
+        services.AddKeyedScoped<ILocationService, LoggingLocationService>("inner");
         services.AddScoped<ILocationService, CachedLocationService>();
-        services.AddKeyedScoped<IReportService, ReportService>("inner");
+        services.AddKeyedScoped<IReportService, ReportService>("core");
+        services.AddKeyedScoped<IReportService, LoggingReportService>("inner");
         services.AddScoped<IReportService, CachedReportService>();
         services.AddScoped<IImageService, ImageService>();
         services.AddScoped<ICloudinaryService, CloudinaryService>();
-        services.AddScoped<INotificationService, NotificationService>();
-        services.AddScoped<IMessageService, MessageService>();
+        services.AddKeyedScoped<INotificationService, NotificationService>("inner");
+        services.AddScoped<INotificationService, LoggingNotificationService>();
+        services.AddKeyedScoped<IMessageService, MessageService>("inner");
+        services.AddScoped<IMessageService, LoggingMessageService>();
         
         // add repositories
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();

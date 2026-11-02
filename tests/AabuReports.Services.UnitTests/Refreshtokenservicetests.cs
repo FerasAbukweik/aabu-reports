@@ -26,10 +26,7 @@ public class RefreshTokenServiceTests : ServiceTestBase
         var options = CreateJwtOptions();
         _jwtOptions = options.Value;
 
-        _refreshTokenService = new RefreshTokenService(
-            _repositoryMock.Object,
-            NullLogger<RefreshTokenService>.Instance,
-            options);
+        _refreshTokenService = new RefreshTokenService(_repositoryMock.Object, options);
     }
 
     private RefreshToken CreateToken(DateTime expiresAt) => new()

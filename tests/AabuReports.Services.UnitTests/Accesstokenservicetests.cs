@@ -31,7 +31,7 @@ public class AccessTokenServiceTests : ServiceTestBase
             ? Microsoft.Extensions.Options.Options.Create(_jwtOptions)
             : CreateJwtOptions(key);
 
-        return new AccessTokenService(NullLogger<AccessTokenService>.Instance, _userManagerMock.Object, options);
+        return new AccessTokenService(_userManagerMock.Object, options);
     }
 
     [Fact]

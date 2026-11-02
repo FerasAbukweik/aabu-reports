@@ -37,9 +37,7 @@ public class NotificationService(
 
         if (!await notificationRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(NotificationService), nameof(CreateAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<NotificationDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }

@@ -6,13 +6,10 @@ using AabuReports.Core.Entities;
 using AabuReports.Core.Enums;
 using AabuReports.Core.Results;
 using AabuReports.Core.ValueObjects;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
-public class LocationService(
-    ILocationRepository locationRepository,
-    ILogger<LocationService> logger) : ILocationService
+public class LocationService(ILocationRepository locationRepository) : ILocationService
 {
     private const string NotFoundMessage = "Location not found";
 
@@ -52,9 +49,7 @@ public class LocationService(
 
         if (!await locationRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(LocationService), nameof(CreateAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<LocationDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
@@ -74,9 +69,7 @@ public class LocationService(
 
         if (!await locationRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(LocationService), nameof(UpdateAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<LocationDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
@@ -92,9 +85,7 @@ public class LocationService(
 
         if (!await locationRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(LocationService), nameof(DeleteAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<LocationDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }

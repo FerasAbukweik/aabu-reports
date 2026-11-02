@@ -8,14 +8,12 @@ using AabuReports.Core.Entities.Identity;
 using AabuReports.Core.Options;
 using AabuReports.Core.Results;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace AabuReports.Infrastructure.Services;
 
 public class AccessTokenService(
-    ILogger<AccessTokenService> logger,
     UserManager<ApplicationUser> userManager,
     IOptions<JwtOptions> jwtOptions) : IAccessTokenService
 {
@@ -24,8 +22,6 @@ public class AccessTokenService(
         // make sure user have username and email
         if (user.UserName == null || user.Email == null)
         {
-            logger.LogWarning("{ServiceName}.{MethodName} user with Id: {UserId} failed creating access token because of missing username or email", 
-                nameof(AccessTokenService), nameof(GenerateAccessTokenAsync), user.Id.ToString());
             return Result<AccessTokenDto>.Failure("user missing username or email");
         }
 
@@ -47,8 +43,6 @@ public class AccessTokenService(
         var roles = await userManager.GetRolesAsync(user);
         if (!roles.Any())
         {
-            logger.LogWarning("{ServiceName}.{MethodName} user with Id: {UserId} tried creating access token while having no roles",
-                nameof(AccessTokenService), nameof(GenerateAccessTokenAsync), user.Id.ToString());
             return Result<AccessTokenDto>.Failure("user has no roles");
         }
         
@@ -58,8 +52,6 @@ public class AccessTokenService(
         // make sure we have the key
         if (string.IsNullOrEmpty(jwtOptions.Value.Key))
         {
-            logger.LogError("{ServiceName}.{MethodName} failed: JWT signing key is not configured.",
-                nameof(AccessTokenService), nameof(GenerateAccessTokenAsync));
             return Result<AccessTokenDto>.Failure("Token configuration error.", HttpStatusCode.InternalServerError);
         }
         

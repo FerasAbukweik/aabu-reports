@@ -21,7 +21,7 @@ public class LocationServiceTests : ServiceTestBase
     public LocationServiceTests(ITestOutputHelper output) : base(output)
     {
         _repositoryMock = new Mock<ILocationRepository>();
-        _locationService = new LocationService(_repositoryMock.Object, NullLogger<LocationService>.Instance);
+        _locationService = new LocationService(_repositoryMock.Object);
     }
 
     #region GetAllAsync

@@ -8,7 +8,6 @@ using AabuReports.Core.Entities;
 using AabuReports.Core.Enums;
 using AabuReports.Core.Extensions;
 using AabuReports.Core.Results;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
@@ -16,8 +15,7 @@ public class ReportService(
     IReportRepository reportRepository,
     ILocationRepository locationRepository,
     IImageService imageService,
-    INotificationService notificationService,
-    ILogger<ReportService> logger) : IReportService
+    INotificationService notificationService) : IReportService
 {
     private const string NotFoundMessage = "Report not found";
     private const string AmbiguousIdMessage = "The short number matches more than one report, use the full id";
@@ -145,9 +143,7 @@ public class ReportService(
 
         if (!await reportRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(ReportService), nameof(RateAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<ReportDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
@@ -161,9 +157,7 @@ public class ReportService(
 
         if (!await reportRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(ReportService), nameof(DeleteAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
@@ -215,9 +209,7 @@ public class ReportService(
         }
         else if (!await reportRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(ReportService), nameof(CreateReportAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<ReportCreateResponseDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
@@ -266,20 +258,16 @@ public class ReportService(
         await NotifyOwnerAsync(report.UserId, type, message, location?.Title, report.Id, cancellationToken);
     }
 
-    /// <summary> a notification that fails must not fail the report action that already succeeded, so it is only logged </summary>
+    /// <summary> a notification that fails must not fail the report action that already succeeded, so it is swallowed (LoggingNotificationService logs it) </summary>
     private async Task NotifyOwnerAsync(Guid userId, NotificationType type, string message, string? subject, Guid reportId, CancellationToken cancellationToken)
     {
         try
         {
-            var result = await notificationService.CreateAsync(userId, type, message, subject, reportId, cancellationToken);
-            if (!result.IsSuccess)
-                logger.LogWarning("{ServiceName} could not create a {NotificationType} notification for report {ReportId}: {Error}",
-                    nameof(ReportService), type, reportId, result.ErrorMessage);
+            await notificationService.CreateAsync(userId, type, message, subject, reportId, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger.LogWarning(exception, "{ServiceName}.{MethodName} failed to notify the owner of report {ReportId}",
-                nameof(ReportService), nameof(NotifyOwnerAsync), reportId);
+            // already logged by LoggingNotificationService
         }
     }
 }

@@ -8,7 +8,6 @@ using AabuReports.Core.Entities.Identity;
 using AabuReports.Core.Enums;
 using AabuReports.Core.Results;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 
 namespace AabuReports.Infrastructure.Services;
 
@@ -16,8 +15,7 @@ public class MessageService(
     IMessageRepository messageRepository,
     IReportRepository reportRepository,
     INotificationService notificationService,
-    UserManager<ApplicationUser> userManager,
-    ILogger<MessageService> logger) : IMessageService
+    UserManager<ApplicationUser> userManager) : IMessageService
 {
     private const string ReportNotFoundMessage = "Report not found";
     private const string EmptyContentMessage = "The message cannot be empty";
@@ -57,9 +55,7 @@ public class MessageService(
 
         if (!await messageRepository.SaveChangesAsync(cancellationToken))
         {
-            var errorMessage = "no changes where applied to the DB";
-            logger.LogError("{ServiceName}.{MethodName} " + errorMessage,
-                nameof(MessageService), nameof(AddAsync));
+            const string errorMessage = "no changes where applied to the DB";
 
             return Result<MessageDto>.Failure(errorMessage, HttpStatusCode.InternalServerError);
         }
@@ -92,23 +88,19 @@ public class MessageService(
         return Result<Guid>.Success(ownerId.Value);
     }
 
-    /// <summary> a notification that fails must not fail the message that is already saved, so it is only logged </summary>
+    /// <summary> a notification that fails must not fail the message that is already saved, so it is swallowed (LoggingNotificationService logs it) </summary>
     private async Task NotifyOwnerAsync(Guid ownerId, Guid reportId, CancellationToken cancellationToken)
     {
         try
         {
             // the location title is the subject of the notification
             var report = await reportRepository.GetByIdAsync(reportId, cancellationToken);
-            var result = await notificationService.CreateAsync(
+            await notificationService.CreateAsync(
                 ownerId, NotificationType.NewMessage, NewMessageNotificationMessage, report?.Location?.Title, reportId, cancellationToken);
-            if (!result.IsSuccess)
-                logger.LogWarning("{ServiceName} could not create a {NotificationType} notification for report {ReportId}: {Error}",
-                    nameof(MessageService), NotificationType.NewMessage, reportId, result.ErrorMessage);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger.LogWarning(exception, "{ServiceName}.{MethodName} failed to notify the owner of report {ReportId}",
-                nameof(MessageService), nameof(NotifyOwnerAsync), reportId);
+            // already logged by LoggingNotificationService
         }
     }
 }

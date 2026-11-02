@@ -70,9 +70,6 @@ public class AuthService(
         var result = await RefreshInternalAsync(refreshToken, cancellationToken);
         if (!result.IsSuccess)
         {
-            logger.LogWarning("{ServiceName}.{MethodName} refresh failed. Error: {Error}",
-                nameof(AuthService), nameof(Refresh), result.ErrorMessage);
-
             // the cookie is useless now, dont keep sending it
             cookieService.ClearAuthCookies();
             return result;

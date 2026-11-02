@@ -36,8 +36,7 @@ public class MessageServiceTests : ServiceTestBase
             _messageRepositoryMock.Object,
             _reportRepositoryMock.Object,
             _notificationServiceMock.Object,
-            _userManagerMock.Object,
-            NullLogger<MessageService>.Instance);
+            _userManagerMock.Object);
     }
 
     private void SetupNotificationResult(Result<NotificationDto> result)
