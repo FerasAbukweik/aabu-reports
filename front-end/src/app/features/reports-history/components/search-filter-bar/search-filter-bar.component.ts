@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ReportFilterDTO } from '../../../../core/DTOs/report/report-filter-dto';
 import { ReportCategory } from '../../../../core/enums/report-category.enum';
@@ -7,7 +16,11 @@ import { FILTERS } from '../../reports-history.data';
 import { FilterValues } from './search-filter-bar.model';
 
 /** what the search box, the dropdowns and the location say -> the filters of the api (an empty value is "all" and is left out) */
-function toFilter(query: string, { state, category }: FilterValues, locationId: string): ReportFilterDTO {
+function toFilter(
+  query: string,
+  { state, category }: FilterValues,
+  locationId: string,
+): ReportFilterDTO {
   return {
     search: query.trim() || undefined,
     state: state ? (Number(state) as ReportState) : undefined,
@@ -57,7 +70,9 @@ export class SearchFilterBarComponent {
   /** the filters the page was told to load with last */
   private readonly appliedFilter = signal<ReportFilterDTO>({});
 
-  private readonly picked = computed(() => toFilter(this.query(), this.values(), this.locationId()));
+  private readonly picked = computed(() =>
+    toFilter(this.query(), this.values(), this.locationId()),
+  );
 
   /** the search box, the dropdowns or the location differ from what was applied */
   private readonly hasUnappliedChanges = computed(() => {
@@ -75,7 +90,10 @@ export class SearchFilterBarComponent {
   protected readonly canApply = computed(() => this.hasUnappliedChanges() && !this.isLoading());
 
   protected readonly hasActiveFilters = computed(
-    () => this.query().trim() !== '' || Object.values(this.values()).some((v) => v !== ''),
+    () =>
+      this.locationId() !== '' ||
+      this.query().trim() !== '' ||
+      Object.values(this.values()).some((value) => value !== ''),
   );
 
   constructor() {

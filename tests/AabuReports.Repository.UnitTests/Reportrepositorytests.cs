@@ -20,6 +20,27 @@ public class ReportRepositoryTests : RepositoryTestBase
 
     private static LazyLoadingDto Page(int skip = 0, int take = 50) => new() { Skip = skip, Take = take };
 
+    [Fact]
+    public async Task CountAsync_ShouldCountAllMatchesBeforePaging()
+    {
+        // Arrange
+        var owner = await SeedUserAsync();
+        var otherUser = await SeedUserAsync();
+        var location = await SeedLocationAsync();
+        await SeedReportAsync(owner.Id, location.Id);
+        await SeedReportAsync(owner.Id, location.Id);
+        await SeedReportAsync(owner.Id, location.Id, state: ReportStateEnum.Fixed);
+        await SeedReportAsync(otherUser.Id, location.Id);
+
+        // Act
+        var count = await _repository.CountAsync(r => r.UserId == owner.Id && r.State == ReportStateEnum.Pending);
+        var missing = await _repository.CountAsync(r => r.UserId == Guid.Empty);
+
+        // Assert
+        count.Should().Be(2);
+        missing.Should().Be(0);
+    }
+
     #region AddReport
 
     [Fact]

@@ -13,7 +13,7 @@ public class LoggingNotificationPusher(
     INotificationPusher innerPusher,
     ILogger<NotificationService> logger) : INotificationPusher
 {
-    private const string Name = "NotificationPusher";
+    private const string Name = nameof(INotificationPusher);
 
     public async Task PushAsync(Guid userId, NotificationDto notification, CancellationToken cancellationToken = default)
     {

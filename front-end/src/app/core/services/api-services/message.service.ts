@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { defer, EMPTY, finalize, Observable, tap } from 'rxjs';
-import { MessageDTO, messageKey } from '../../DTOs/message/message-dto';
+import { Subject, filter, takeUntil, defer, EMPTY, finalize, Observable, tap } from 'rxjs';
+import { MessageDTO } from '../../DTOs/message/message-dto';
 import { toastError } from '../../utils/error-toast';
 import { MessageApiService } from '../api/message-api.service';
 import { MessageHubService, TypingEvent } from '../hubs/message-hub.service';
@@ -70,11 +70,19 @@ export class MessageService {
   /** `${reportId}|${userId}` -> the timer that removes someone else's "typing..." */
   private readonly expireTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+  private readonly reset$ = new Subject<void>();
+
   constructor() {
     // the service lives as long as the app, so it listens for good (the hub only sends the chat that is joined)
-    this.hub.onMessageReceived$.subscribe((message) => this.addMissing(message.reportId, [message]));
-    this.hub.onTyping$.subscribe((event) => this.someoneTyping(event));
-    this.hub.onStoppedTyping$.subscribe((event) => this.someoneStopped(event));
+    this.hub.onMessageReceived$
+      .pipe(filter(() => this.authService.isLoggedIn()))
+      .subscribe((message) => this.addMissing(message.reportId, [message]));
+    this.hub.onTyping$
+      .pipe(filter(() => this.authService.isLoggedIn()))
+      .subscribe((event) => this.someoneTyping(event));
+    this.hub.onStoppedTyping$
+      .pipe(filter(() => this.authService.isLoggedIn()))
+      .subscribe((event) => this.someoneStopped(event));
   }
 
   // readers
@@ -132,6 +140,7 @@ export class MessageService {
       const taken = this.messages(id).length;
 
       return this.messageApi.getByReport(id, { taken, sectionSize: MESSAGES_PAGE_SIZE }).pipe(
+        takeUntil(this.reset$),
         tap((page) => {
           this.addMissing(id, page);
           this.setPageState(id, { isMoreAvailable: page.length === MESSAGES_PAGE_SIZE });
@@ -202,6 +211,16 @@ export class MessageService {
     this.idleTimer = setTimeout(() => this.stopTyping(), TYPING_IDLE_MS);
   }
 
+  public reset(): void {
+    this.reset$.next();
+    this.stopTyping();
+    for (const timer of this.expireTimers.values()) clearTimeout(timer);
+    this.expireTimers.clear();
+    this.messagesByReport.set(new Map());
+    this.pageStates.set(new Map());
+    this.typingByReport.set(new Map());
+  }
+
   // private
 
   private pageState(reportId: string): PageState {
@@ -211,7 +230,9 @@ export class MessageService {
   private setPageState(reportId: string, changes: Partial<PageState>): void {
     const id = toKey(reportId);
 
-    this.pageStates.update((map) => new Map(map).set(id, { ...(map.get(id) ?? INITIAL_PAGE_STATE), ...changes }));
+    this.pageStates.update((map) =>
+      new Map(map).set(id, { ...(map.get(id) ?? INITIAL_PAGE_STATE), ...changes }),
+    );
   }
 
   /** adds the messages of a report that are not in its list yet, and keeps it oldest first */
@@ -220,12 +241,14 @@ export class MessageService {
 
     this.messagesByReport.update((map) => {
       const list = map.get(id) ?? NO_MESSAGES;
-      const keys = new Set(list.map(messageKey));
-      const missing = incoming.filter((m) => !keys.has(messageKey(m)));
+      const keys = new Set(list.map((message) => message.id));
+      const missing = incoming.filter((m) => !keys.has(m.id));
       if (missing.length === 0) return map;
 
       // by the time, not by the text: the api trims the zeros of the fraction, so "…12.5Z" and "…12.45Z" do not sort as text
-      const merged = [...list, ...missing].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+      const merged = [...list, ...missing].sort(
+        (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+      );
 
       return new Map(map).set(id, merged);
     });
@@ -272,7 +295,10 @@ export class MessageService {
       const ids = map.get(id) ?? NO_IDS;
       if (!ids.includes(event.userId)) return map;
 
-      return new Map(map).set(id, ids.filter((userId) => userId !== event.userId));
+      return new Map(map).set(
+        id,
+        ids.filter((userId) => userId !== event.userId),
+      );
     });
   }
 

@@ -30,7 +30,7 @@ internal static class RedisServiceExtensions
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Failed to read {CacheKey} from Redis, falling back to the database", cacheKey);
+            logger.LogWarning(ex, "{ServiceName}.{MethodName} failed to read {CacheKey} from Redis, falling back to the database", nameof(RedisServiceExtensions), nameof(GetOrSetAsync), cacheKey);
         }
 
         var result = await innerCall();
@@ -43,7 +43,7 @@ internal static class RedisServiceExtensions
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Failed to write {CacheKey} to Redis", cacheKey);
+            logger.LogWarning(ex, "{ServiceName}.{MethodName} failed to write {CacheKey} to Redis", nameof(RedisServiceExtensions), nameof(GetOrSetAsync), cacheKey);
         }
 
         return result;
@@ -61,7 +61,7 @@ internal static class RedisServiceExtensions
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to clear the Redis keys with the prefix {CachePrefix}", prefix);
+                logger.LogError(ex, "{ServiceName}.{MethodName} failed to clear the Redis keys with the prefix {CachePrefix}", nameof(RedisServiceExtensions), nameof(InvalidateAsync), prefix);
             }
         }
     }

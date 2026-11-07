@@ -186,10 +186,10 @@ public class CachedReportServiceTests : ServiceTestBase
         var userId = Guid.NewGuid();
         var filter = new ReportFilterDto();
         var lazy = new LazyLoadingDto { Skip = 0, Take = 10 };
-        IReadOnlyList<ReportDto> reports = new List<ReportDto> { CreateReport().ToDto() };
+        var reports = new ReportTableDto { Reports = [CreateReport().ToDto()], TotalCount = 23 };
 
         _innerMock.Setup(i => i.LazyGetFilteredAsync(userId, filter, lazy, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<IReadOnlyList<ReportDto>>.Success(reports));
+            .ReturnsAsync(Result<ReportTableDto>.Success(reports));
 
         // Act
         var result = await _cachedService.LazyGetFilteredAsync(userId, filter, lazy);

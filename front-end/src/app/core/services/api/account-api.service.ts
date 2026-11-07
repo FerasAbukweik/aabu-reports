@@ -20,8 +20,4 @@ export class AccountApiService {
   public me() {
     return this.http.get<MeDTO>(`${this.url}/me`);
   }
-
-  public isAdmin() {
-    return this.http.post<void>(`${this.url}/is-admin`, {});
-  }
 }

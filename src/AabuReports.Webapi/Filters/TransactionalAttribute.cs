@@ -1,4 +1,5 @@
 using AabuReports.Infrastructure;
+using AabuReports.Webapi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -13,26 +14,34 @@ public class TransactionalAttribute : ActionFilterAttribute
         // DI database
         var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
 
+        var notificationPusher = context.HttpContext.RequestServices.GetRequiredService<SignalRNotificationPusher>();
+        var cancellationToken = context.HttpContext.RequestAborted;
         var strategy = dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 var executedContext = await next();
 
                 if (executedContext.Exception != null || IsFailureResult(executedContext.Result))
-                    await transaction.RollbackAsync();
-                
-                else
-                    await transaction.CommitAsync();
+                {
+                    notificationPusher.DiscardPending();
+                    await transaction.RollbackAsync(CancellationToken.None);
+                    return;
+                }
+
+                await transaction.CommitAsync(cancellationToken);
             }
             catch (Exception)
             {
-                await transaction.RollbackAsync();
+                notificationPusher.DiscardPending();
+                await transaction.RollbackAsync(CancellationToken.None);
                 throw;
             }
+
+            await notificationPusher.PublishPendingAsync();
         });
     }
     

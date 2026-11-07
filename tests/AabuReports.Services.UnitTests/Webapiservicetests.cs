@@ -1,6 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using AabuReports.Core.Dtos.Auth;
 using AabuReports.Core.Dtos.LazyLoading;
+using AabuReports.Core.Dtos.Reports;
+using AabuReports.Core.Enums;
+using AabuReports.Core.ValueObjects;
 using AabuReports.Webapi.Middlewares;
 using AabuReports.Webapi.Services;
 using AabuReports.Webapi.Settings;
@@ -13,6 +16,28 @@ namespace AabuReports.Services.UnitTests;
 
 public class WebApiServiceTests
 {
+    [Theory]
+    [InlineData(90, 180, true)]
+    [InlineData(-90, -180, true)]
+    [InlineData(91, 0, false)]
+    [InlineData(0, -181, false)]
+    public void Coordinates_ShouldRejectInvalidLatitudeOrLongitude(double lat, double lng, bool valid)
+    {
+        var coordinates = new MapCoordinates { Lat = lat, Lng = lng };
+        Validator.TryValidateObject(coordinates, new ValidationContext(coordinates), new List<ValidationResult>(), true)
+            .Should().Be(valid);
+    }
+
+    [Fact]
+    public void ReportFilters_ShouldRejectUndefinedEnumsAndInvalidRatings()
+    {
+        var filter = new ReportFilterDto { State = (ReportStateEnum)999, Rate = 6 };
+        var errors = new List<ValidationResult>();
+
+        Validator.TryValidateObject(filter, new ValidationContext(filter), errors, true).Should().BeFalse();
+        errors.Should().HaveCount(2);
+    }
+
     [Fact]
     public void AuthCookies_ShouldScopeRefreshToAuthEndpoints_AndExpireLegacyCookie()
     {

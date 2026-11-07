@@ -46,8 +46,12 @@ export class MessageHubService {
   readonly onReconnected$ = new Subject<void>();
 
   constructor() {
-    this.connection.on('ReceiveMessage', (message: MessageDTO) => this.onMessageReceived$.next(message));
-    this.connection.on('NotifyTyping', (reportId: string, userId: string) => this.onTyping$.next({ reportId, userId }));
+    this.connection.on('ReceiveMessage', (message: MessageDTO) =>
+      this.onMessageReceived$.next(message),
+    );
+    this.connection.on('NotifyTyping', (reportId: string, userId: string) =>
+      this.onTyping$.next({ reportId, userId }),
+    );
     this.connection.on('NotifyStoppedTyping', (reportId: string, userId: string) =>
       this.onStoppedTyping$.next({ reportId, userId }),
     );
@@ -81,6 +85,9 @@ export class MessageHubService {
     if (this.currentGroup !== reportId) return;
 
     await this.addToGroup(reportId);
+
+    // A slow join can finish after the chat was closed or changed.
+    if (this.currentGroup !== reportId) await this.leaveReport(reportId);
   }
 
   /** Stops receiving the report (the chat was closed). Never throws. */

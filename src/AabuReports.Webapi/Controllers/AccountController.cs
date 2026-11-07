@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using AabuReports.Core.Abstractions.Services;
 using AabuReports.Core.Dtos.Accounts;
-using AabuReports.Core.Enums;
 using AabuReports.Webapi.ExtensionMethods;
 using AabuReports.Webapi.Filters;
 using Microsoft.AspNetCore.Authorization;
@@ -36,12 +35,4 @@ public class AccountController(IAccountService accountService) : ApiControllerBa
         });
     }
 
-    [HttpPost("is-admin")]
-    [Authorize]
-    public ActionResult IsAdmin()
-    {
-        if (User.IsAdmin()) return Ok();
-
-        return Forbid();
-    }
 }

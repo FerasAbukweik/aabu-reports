@@ -39,7 +39,7 @@ public class AppHub(IMessageService messageService, IReportRepository reportRepo
 
     public async Task SendMessage(Guid reportId, string content)
     {
-        var result = await messageService.AddAsync(reportId, Context.User!.GetUserId(), content);
+        var result = await messageService.AddAsync(reportId, Context.User!.GetUserId(), content, Context.ConnectionAborted);
         if (!result.IsSuccess) throw new HubException(result.ErrorMessage);
 
         // everyone in the chat (including the sender's own tabs), the client uses SenderId to know which messages are its own

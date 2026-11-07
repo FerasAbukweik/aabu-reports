@@ -35,6 +35,7 @@ public class Message
     {
         return new MessageDto
         {
+            Id = this.Id,
             SenderId = this.SenderId,
             SenderName = this.Sender!.FullName,
             ReportId = this.ReportId,

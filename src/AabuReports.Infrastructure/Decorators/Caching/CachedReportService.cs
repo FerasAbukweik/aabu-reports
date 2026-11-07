@@ -39,7 +39,7 @@ public class CachedReportService(
 
     // ---------- reads that always hit the database ----------
 
-    public Task<Result<IReadOnlyList<ReportDto>>> LazyGetFilteredAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
+    public Task<Result<ReportTableDto>> LazyGetFilteredAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
         => innerService.LazyGetFilteredAsync(userId, filterDto, lazyLoadingDto, cancellationToken);
 
     public Task<Result<ReportDto>> GetByIdAsync(string idOrShortId, CancellationToken cancellationToken = default)

@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { EMPTY, map, Observable, tap } from 'rxjs';
+import { defer, finalize, map, Observable, of, Subject, takeUntil, tap } from 'rxjs';
 import { LocationCreateDTO } from '../../DTOs/location/location-create-dto';
 import { LocationDTO } from '../../DTOs/location/location-dto';
 import { LocationUpdateDTO } from '../../DTOs/location/location-update-dto';
@@ -16,17 +16,16 @@ export class LocationService {
   private toast = inject(ToastService);
 
   // state
-  private readonly _locations = signal<readonly LocationDTO[]>([]);
-  public readonly locations = this._locations.asReadonly();
+  private readonly _locations = signal<readonly LocationDTO[] | null>(null);
+  public readonly locations = computed(() => this._locations() ?? []);
   public readonly buildings = computed(() =>
-    this._locations().filter((l) => l.type === LocationTypeEnum.Building),
+    this.locations().filter((l) => l.type === LocationTypeEnum.Building),
   );
 
   private readonly _loading = signal(false);
   public readonly loading = this._loading.asReadonly();
 
-  /** the locations were loaded from the api at least once (the list is then kept up to date by the methods below) */
-  private isLoaded = false;
+  private readonly reset$ = new Subject<void>();
 
   // methods
 
@@ -36,9 +35,10 @@ export class LocationService {
    * On failure it shows an error toast and rethrows the error.
    */
   public load(): Observable<readonly LocationDTO[]> {
-    if (this.isLoaded) return EMPTY;
-
-    return this.refresh();
+    return defer(() => {
+      const cached = this._locations();
+      return cached !== null ? of(cached) : this.refresh();
+    });
   }
 
   /**
@@ -47,39 +47,42 @@ export class LocationService {
    * On failure it shows an error toast and rethrows the error.
    */
   public refresh(): Observable<readonly LocationDTO[]> {
-    this._loading.set(true);
+    return defer(() => {
+      this._loading.set(true);
 
-    return this.locationApi.getAll().pipe(
-      tap({
-        next: (locations) => {
-          this._locations.set(locations);
-          this.isLoaded = true;
-        },
-        finalize: () => this._loading.set(false),
-      }),
-      toastError(this.toast, 'تعذر تحميل المواقع', (e) => this.errorMessage(e, 'load')),
-    );
+      return this.locationApi.getAll().pipe(
+        takeUntil(this.reset$),
+        tap((locations) => this._locations.set(locations)),
+        finalize(() => this._loading.set(false)),
+        toastError(this.toast, 'تعذر تحميل المواقع', (e) => this.errorMessage(e, 'load')),
+      );
+    });
   }
 
   /** Adds a location, or replaces it when it is already in the list (no request to the api). */
   public upsert(location: LocationDTO): void {
     this._locations.update((curr) =>
-      curr.some((l) => l.id === location.id)
-        ? curr.map((l) => (l.id === location.id ? location : l))
-        : [location, ...curr],
+      curr === null
+        ? null
+        : curr.some((l) => l.id === location.id)
+          ? curr.map((l) => (l.id === location.id ? location : l))
+          : [location, ...curr],
     );
   }
 
   /**
-   * Creates a location (POST /location, admin only). The api answers with no body,
-   * so the list is reloaded to get the new location with its id.
+   * Creates a location (POST /location, admin only) and adds the returned location to a loaded list.
    */
   public create(locationCreateDTO: LocationCreateDTO): Observable<LocationDTO> {
     return this.locationApi
       .create({ ...locationCreateDTO, title: locationCreateDTO.title.trim() })
       .pipe(
+        takeUntil(this.reset$),
         toastError(this.toast, 'تعذر إضافة الموقع', (e) => this.errorMessage(e, 'create')),
-        tap({ next: (newL) => this._locations.update((curr) => [newL, ...curr]) }),
+        tap({
+          next: (newL) =>
+            this._locations.update((curr) => (curr === null ? null : [newL, ...curr])),
+        }),
       );
   }
 
@@ -88,8 +91,11 @@ export class LocationService {
     return this.locationApi
       .update({ ...locationUpdateDTO, title: locationUpdateDTO.title?.trim() })
       .pipe(
+        takeUntil(this.reset$),
         tap((updated) =>
-          this._locations.update((list) => list.map((l) => (l.id === updated.id ? updated : l))),
+          this._locations.update(
+            (list) => list?.map((l) => (l.id === updated.id ? updated : l)) ?? null,
+          ),
         ),
         toastError(this.toast, 'تعذر تحديث الموقع', (e) => this.errorMessage(e, 'update')),
       );
@@ -98,10 +104,17 @@ export class LocationService {
   /** Deletes a location (DELETE /location/{id}, admin only) and removes it from the list. */
   public delete(id: string): Observable<void> {
     return this.locationApi.delete(id).pipe(
-      tap(() => this._locations.update((list) => list.filter((l) => l.id !== id))),
+      takeUntil(this.reset$),
+      tap(() => this._locations.update((list) => list?.filter((l) => l.id !== id) ?? null)),
       map(() => undefined),
       toastError(this.toast, 'تعذر حذف الموقع', (e) => this.errorMessage(e, 'delete')),
     );
+  }
+
+  public reset(): void {
+    this.reset$.next();
+    this._locations.set(null);
+    this._loading.set(false);
   }
 
   // private

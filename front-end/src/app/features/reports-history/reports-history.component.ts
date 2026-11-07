@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ReportDTO } from '../../core/DTOs/report/report-dto';
@@ -17,12 +24,7 @@ const NO_REPORTS: readonly ReportDTO[] = [];
  */
 @Component({
   selector: 'app-reports-history',
-  imports: [
-    RouterLink,
-    HistoryStatsComponent,
-    SearchFilterBarComponent,
-    ReportsTableComponent,
-  ],
+  imports: [RouterLink, HistoryStatsComponent, SearchFilterBarComponent, ReportsTableComponent],
   templateUrl: './reports-history.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -51,11 +53,13 @@ export class ReportsHistoryComponent {
     () => this.reportsTable.cachedPage(this.page(), this.isAdmin, this.filter()) ?? NO_REPORTS,
   );
 
-  protected readonly isFiltered = computed(() => Object.values(this.filter()).some((value) => value !== undefined));
+  protected readonly isFiltered = computed(() =>
+    Object.values(this.filter()).some((value) => value !== undefined),
+  );
 
-  /** the total of the stats counts every report, so it is only right while no filter is applied */
-  private readonly stats = this.isAdmin ? this.reportsTable.allStats : this.reportsTable.myStats;
-  protected readonly total = computed(() => (this.isFiltered() ? undefined : this.stats()?.totalReportsCount));
+  protected readonly total = computed(
+    () => this.reportsTable.cachedTotal(this.page(), this.isAdmin, this.filter()) ?? 0,
+  );
 
   // ---------- actions ----------
   /** the filter bar said new filters (it also says them once when the page opens): the table starts again from the first page */
@@ -72,10 +76,10 @@ export class ReportsHistoryComponent {
   }
 
   /**
-   * A report was deleted: the service dropped the cached pages (the pages after it moved by one), so the page on the screen
-   * is loaded again. If it was the last row of the last page, the previous page is shown instead.
+   * A report changed: reload the page because filter membership and page boundaries may have changed.
+   * An empty last page goes back to the preceding page.
    */
-  protected onReportDeleted(): void {
+  protected onReportsChanged(): void {
     const page = this.page();
     const filter = this.filter();
 
@@ -85,7 +89,11 @@ export class ReportsHistoryComponent {
   }
 
   // private
-  private load(page: number, filter: ReportFilterDTO, onLoaded?: (reports: readonly ReportDTO[]) => void): void {
+  private load(
+    page: number,
+    filter: ReportFilterDTO,
+    onLoaded?: (reports: readonly ReportDTO[]) => void,
+  ): void {
     this.requested = { page, filter };
     this.hasLoadFailed.set(false);
 

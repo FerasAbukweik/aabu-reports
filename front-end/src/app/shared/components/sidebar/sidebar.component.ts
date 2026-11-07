@@ -58,6 +58,9 @@ export class SidebarComponent {
 
   protected logout(): void {
     // AuthService already shows the error toast if it fails
-    this._authService.logout().subscribe({ error: () => {} });
+    this._authService.logout().subscribe({
+      next: () => void this._router.navigateByUrl('/login-signup'),
+      error: () => {},
+    });
   }
 }

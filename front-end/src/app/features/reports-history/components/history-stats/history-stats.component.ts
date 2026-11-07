@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  input,
+  OnInit,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Status } from '../../../../core/enums/status.enum';
 import { ReportsTableService } from '../../../../core/services/api-services/reports-table.service';
@@ -49,7 +57,7 @@ export class HistoryStatsComponent implements OnInit {
         unit: 'بلاغ',
         icon: 'folder_open',
         status: Status.Info,
-        note: 'جميع البلاغات التي قدمتها',
+        note: this.isAdmin() ? 'بلاغات جميع المستخدمين' : 'جميع البلاغات التي قدمتها',
         noteIcon: 'history',
       },
       {
@@ -75,7 +83,7 @@ export class HistoryStatsComponent implements OnInit {
         noteIcon: 'verified',
       },
       {
-        label: 'بانتظار تقييمك للخدمة',
+        label: this.isAdmin() ? 'بانتظار تقييم أصحابها' : 'بانتظار تقييمك للخدمة',
         value: s ? String(s.awaitingRatingReportsCount) : dash,
         unit: 'يتطلب رأيك',
         icon: 'reviews',

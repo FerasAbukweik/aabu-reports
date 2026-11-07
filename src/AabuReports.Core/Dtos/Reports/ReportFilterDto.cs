@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using AabuReports.Core.Entities;
 using AabuReports.Core.Enums;
@@ -11,8 +12,11 @@ namespace AabuReports.Core.Dtos.Reports;
 /// </summary>
 public class ReportFilterDto
 {
+    [EnumDataType(typeof(ReportStateEnum))]
     public ReportStateEnum? State { get; set; }
+    [EnumDataType(typeof(ReportCategory))]
     public ReportCategory? Category { get; set; }
+    [EnumDataType(typeof(ReportSeverity))]
     public ReportSeverity? Severity { get; set; }
 
     /// <summary> one text for the search box: it is found in the report id (with or without the # and the dashes), the title of the report's location or the description </summary>
@@ -28,6 +32,7 @@ public class ReportFilterDto
     public string? Description { get; set; }
 
     /// <summary> the report was rated with exactly this rate (1-5) </summary>
+    [Range(1, 5)]
     public int? Rate { get; set; }
 
     /// <summary> only the reports of this location </summary>

@@ -130,6 +130,8 @@ export class SignalRService {
       if (this._state() !== 'connecting') throw error;
 
       await firstValueFrom(this.authService.refresh());
+      if (this._state() !== 'connecting') return;
+
       await this.connection.start();
     }
   }

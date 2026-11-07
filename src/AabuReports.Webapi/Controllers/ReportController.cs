@@ -17,7 +17,7 @@ public class ReportController(IReportService reportService) : ApiControllerBase
     /// (a user who is not an admin always gets only their own, the flag is ignored)
     /// </summary>
     [HttpGet("table")]
-    public async Task<ActionResult<IReadOnlyList<ReportDto>>> LazyGetFilteredTableReports(
+    public async Task<ActionResult<ReportTableDto>> LazyGetFilteredTableReports(
         [FromQuery] ReportFilterDto filterDto,
         [FromQuery] LazyLoadingDto lazyLoadingDto,
         [FromQuery] bool allReports = false,

@@ -2,6 +2,8 @@ namespace AabuReports.Core.Dtos.Messages;
 
 public class MessageDto
 {
+    public required Guid Id { get; set; }
+
     public required Guid SenderId { get; set; }
     public required string SenderName { get; set; }
     public required Guid ReportId { get; set; }

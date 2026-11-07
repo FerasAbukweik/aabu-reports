@@ -1,14 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Observable, switchMap, tap } from 'rxjs';
+import { defer, Observable, of, switchMap, tap } from 'rxjs';
 import { LoginDTO } from '../../DTOs/auth/login-dto';
 import { MeDTO } from '../../DTOs/account/me-dto';
 import { AccountApiService } from '../api/account-api.service';
 import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { AuthApiService } from '../api/auth-api.service';
 import { ToastService } from '../local/toast.service';
-
-const USER_KEY = 'user';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -21,54 +19,43 @@ export class AuthService {
   private readonly _currentUser = signal<MeDTO | null>(null);
   public readonly currentUser = this._currentUser.asReadonly();
 
-  private _studentId = '';
-
   public readonly isLoggedIn = computed(() => this._currentUser() !== null);
-
-  constructor() {
-    this._currentUser.set(this.readStoredUser());
-  }
 
   // methods
 
   /** Validates credentials and sends an email code; authentication completes after verification. */
   public login(loginDTO: LoginDTO): Observable<unknown> {
-    return this.authApi.login({ ...loginDTO, studentId: loginDTO.studentId.trim() }).pipe(
-      toastError(this.toast, 'تعذر تسجيل الدخول', (e) => this.loginErrorMessage(e)),
-      tap({ next: () => (this._studentId = loginDTO.studentId.trim()) }),
-    );
-  }
-
-  public verifyEmail(code: string): Observable<MeDTO> {
-    return this.authApi.verifyEmail(this._studentId, code).pipe(
-      toastError(this.toast, 'تعذر التحقق من الرمز'),
-      switchMap(() => this.loadCurrentUser()),
-    );
-  }
-
-  public resendCode(): Observable<unknown> {
     return this.authApi
-      .resendCode(this._studentId)
-      .pipe(toastError(this.toast, 'تعذر إرسال رمز جديد'));
+      .login({ ...loginDTO, studentId: loginDTO.studentId.trim() })
+      .pipe(toastError(this.toast, 'تعذر تسجيل الدخول', (e) => this.loginErrorMessage(e)));
+  }
+
+  public verifyEmail(studentId: string, code: string): Observable<MeDTO> {
+    return this.authApi.verifyEmail(studentId, code).pipe(
+      switchMap(() => this.loadCurrentUser()),
+      toastError(this.toast, 'تعذر التحقق من الرمز'),
+    );
+  }
+
+  public resendCode(studentId: string): Observable<unknown> {
+    return this.authApi.resendCode(studentId).pipe(toastError(this.toast, 'تعذر إرسال رمز جديد'));
   }
 
   /** Loads the authenticated user after verification or when restoring a session. */
   public loadCurrentUser(): Observable<MeDTO> {
-    return this.accountApi.me().pipe(
-      tap((user) => this.setUser(user)),
-      toastError(this.toast, 'تعذر تحميل بيانات الحساب'),
-    );
+    return defer(() => {
+      const user = this._currentUser();
+      if (user !== null) return of(user);
+
+      return this.accountApi.me().pipe(tap((currentUser) => this._currentUser.set(currentUser)));
+    });
   }
 
   /** Revokes the refresh token and clears the cookies. Shows an error toast and rethrows if it fails. */
   public logout(): Observable<unknown> {
     return this.authApi.logout().pipe(
       toastError(this.toast, 'تعذر تسجيل الخروج'),
-      // the page reloads so every service starts from a clean state
-      tap(() => {
-        this.clearUser();
-        window.location.reload();
-      }),
+      tap(() => this.clearUser()),
     );
   }
 
@@ -76,33 +63,9 @@ export class AuthService {
     return this.authApi.refresh();
   }
 
-  /** Forgets the user (signal and local storage), so the guards send them to the login page. */
+  /** Forgets the in-memory user so route guards restore the session through Me. */
   public clearUser(): void {
     this._currentUser.set(null);
-    try {
-      localStorage.removeItem(USER_KEY);
-    } catch {
-      /* Storage can be disabled. */
-    }
-  }
-
-  private setUser(user: MeDTO): void {
-    this._currentUser.set(user);
-    try {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-    } catch {
-      /* The in-memory session remains usable. */
-    }
-  }
-
-  private readStoredUser(): MeDTO | null {
-    try {
-      const stored = localStorage.getItem(USER_KEY);
-      return stored ? (JSON.parse(stored) as MeDTO) : null;
-    } catch {
-      // storage unavailable or the value is broken: start logged out
-      return null;
-    }
   }
 
   private loginErrorMessage(error: HttpErrorResponse): string {

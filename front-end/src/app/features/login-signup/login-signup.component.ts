@@ -86,6 +86,8 @@ export class LoginSignupComponent {
     { validators: passwordsMatch },
   );
 
+  private verificationStudentId = '';
+
   private redirectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -97,7 +99,14 @@ export class LoginSignupComponent {
   // ---------- Tabs ----------
   setTab(tab: AuthTab): void {
     if (tab === this.activeTab()) return;
-    if (this.loginState() !== 'idle' || this.registerState() !== 'idle' || this.resending()) return;
+    if (
+      this.loginState() !== 'idle' ||
+      this.registerState() !== 'idle' ||
+      this.resending() ||
+      this.verificationState() !== 'idle'
+    )
+      return;
+    this.verificationStudentId = '';
     this.verificationTab.set(null);
     this.verificationNoticeOpen.set(false);
     this.verificationError.set(null);
@@ -207,6 +216,7 @@ export class LoginSignupComponent {
   }
 
   private beginVerification(tab: AuthTab, studentId: string): void {
+    this.verificationStudentId = studentId.trim();
     this.verificationError.set(null);
     this.verificationTab.set(tab);
     this.otp()?.clear();
@@ -227,7 +237,7 @@ export class LoginSignupComponent {
     this.verificationError.set(null);
     this.resending.set(true);
     this._authService
-      .resendCode()
+      .resendCode(this.verificationStudentId)
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {
@@ -254,7 +264,7 @@ export class LoginSignupComponent {
     this.verificationState.set('loading');
     this.submitState(tab).set('loading');
     this._authService
-      .verifyEmail(code)
+      .verifyEmail(this.verificationStudentId, code)
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe({
         next: () => {

@@ -39,6 +39,9 @@ public interface IReportRepository
     /// <returns> the owner id, or null if the report doesnt exist </returns>
     Task<Guid?> GetOwnerIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary> counts all matching reports before pagination </summary>
+    Task<int> CountAsync(Expression<Func<Report, bool>> predicate, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// filter based on input
     /// </summary>

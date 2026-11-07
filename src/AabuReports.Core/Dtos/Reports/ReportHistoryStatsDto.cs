@@ -3,7 +3,7 @@ namespace AabuReports.Core.Dtos.Reports;
 /// <summary> the numbers shown on the stats cards of the reports history page, all about the reports of one user </summary>
 public class ReportHistoryStatsDto
 {
-    /// <summary> every report the user sent (the history table uses it to know how many pages it has) </summary>
+    /// <summary> every report the user sent </summary>
     public required int TotalReportsCount { get; set; }
 
     /// <summary> the user's reports that are in progress right now </summary>

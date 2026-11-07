@@ -29,10 +29,13 @@ public class ReportService(
     private const string FixedNotificationMessage = "تم إصلاح المشكلة، يمكنك الآن تقييم الإصلاح";
     private const string NeedsFollowUpNotificationMessage = "يحتاج بلاغك إلى متابعة إضافية";
     
-    public async Task<Result<IReadOnlyList<ReportDto>>> LazyGetFilteredAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
+    public async Task<Result<ReportTableDto>> LazyGetFilteredAsync(Guid? userId, ReportFilterDto filterDto, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
     {
+        var predicate = filterDto.ToPredicate().And(r => userId == null || r.UserId == userId);
+        var totalCount = await reportRepository.CountAsync(predicate, cancellationToken);
+
         var reports = await reportRepository.FilterAsync(
-            filterDto.ToPredicate().And(r => (userId == null || r.UserId == userId)),
+            predicate,
             [r => r.Images, r => r.Location],
             r => r.ReportDate,
             true,
@@ -40,7 +43,11 @@ public class ReportService(
             lazyLoadingDto.Take,
             cancellationToken);
 
-        return Result<IReadOnlyList<ReportDto>>.Success(reports.Select(r => r.ToDto()).ToList());
+        return Result<ReportTableDto>.Success(new ReportTableDto
+        {
+            Reports = reports.Select(r => r.ToDto()).ToList(),
+            TotalCount = totalCount
+        });
     }
     
     public async Task<Result<IReadOnlyList<ReportMapDto>>> LazyGetMapReportsAsync(Guid locationId, LazyLoadingDto lazyLoadingDto, CancellationToken cancellationToken = default)
@@ -116,6 +123,9 @@ public class ReportService(
     }
     public async Task<Result<ReportDto>> UpdateStateAsync(ReportUpdateStateDto reportUpdateStateDto, CancellationToken cancellationToken = default)
     {
+        if (!Enum.IsDefined(reportUpdateStateDto.State) || reportUpdateStateDto.State == ReportStateEnum.Normal)
+            return Result<ReportDto>.Failure("Invalid report state");
+
         var updated = await reportRepository.UpdateState(reportUpdateStateDto, cancellationToken);
         if (updated is null)
             return Result<ReportDto>.Failure(NotFoundMessage, HttpStatusCode.NotFound);

@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { defer, EMPTY, finalize, Observable, Subscription, tap } from 'rxjs';
+import { Subject, takeUntil, defer, EMPTY, finalize, Observable, Subscription, tap } from 'rxjs';
 import { NotificationDTO } from '../../DTOs/notification/notification-dto';
 import { toastError } from '../../utils/error-toast';
 import { getNotificationMeta } from '../../utils/notification-utils';
@@ -41,6 +41,8 @@ export class NotificationService {
   private isStarted = false;
   private hubSubscriptions = new Subscription();
 
+  private readonly reset$ = new Subject<void>();
+
   // methods
 
   /**
@@ -54,7 +56,9 @@ export class NotificationService {
     this.isStarted = true;
 
     this.hubSubscriptions.add(this.hub.onNotificationReceived$.subscribe((n) => this.receive(n)));
-    this.hubSubscriptions.add(this.hub.onReconnected$.subscribe(() => this.refreshAfterReconnect()));
+    this.hubSubscriptions.add(
+      this.hub.onReconnected$.subscribe(() => this.refreshAfterReconnect()),
+    );
 
     await this.hub.startConnection();
 
@@ -94,6 +98,7 @@ export class NotificationService {
       const taken = this._notifications().length;
 
       return this.notificationApi.getMine({ taken, sectionSize: NOTIFICATIONS_PAGE_SIZE }).pipe(
+        takeUntil(this.reset$),
         tap((page) => {
           this.addMissing(page);
           this._isMoreAvailable.set(page.length === NOTIFICATIONS_PAGE_SIZE);
@@ -116,16 +121,25 @@ export class NotificationService {
       const previousCount = this._unreadCount();
       if (previousCount === 0) return EMPTY;
 
-      const unreadIds = new Set(this._notifications().filter((n) => !n.isRead).map((n) => n.id));
+      const unreadIds = new Set(
+        this._notifications()
+          .filter((n) => !n.isRead)
+          .map((n) => n.id),
+      );
 
-      this._notifications.update((list) => list.map((n) => (n.isRead ? n : { ...n, isRead: true })));
+      this._notifications.update((list) =>
+        list.map((n) => (n.isRead ? n : { ...n, isRead: true })),
+      );
       this._unreadCount.set(0);
 
       return this.notificationApi.markAllAsRead().pipe(
+        takeUntil(this.reset$),
         tap({
           error: () => {
             // only the ones that were unread go back, a notification that arrived in the meantime stays as it is
-            this._notifications.update((list) => list.map((n) => (unreadIds.has(n.id) ? { ...n, isRead: false } : n)));
+            this._notifications.update((list) =>
+              list.map((n) => (unreadIds.has(n.id) ? { ...n, isRead: false } : n)),
+            );
             this._unreadCount.update((count) => count + previousCount);
           },
         }),
@@ -144,7 +158,9 @@ export class NotificationService {
     if (!notification.isRead) this._unreadCount.update((count) => count + 1);
 
     const meta = getNotificationMeta(notification.type);
-    const message = notification.subject ? `${notification.message} • ${notification.subject}` : notification.message;
+    const message = notification.subject
+      ? `${notification.message} • ${notification.subject}`
+      : notification.message;
     this.toast.show(meta.status, meta.label, message, { icon: meta.icon });
   }
 
@@ -152,17 +168,23 @@ export class NotificationService {
   private refreshAfterReconnect(): void {
     this.refreshUnreadCount();
 
-    this.notificationApi.getMine({ taken: 0, sectionSize: NOTIFICATIONS_PAGE_SIZE }).subscribe({
-      next: (page) => this.addMissing(page),
-      error: () => {}, // no toast, the old list stays on the screen
-    });
+    this.notificationApi
+      .getMine({ taken: 0, sectionSize: NOTIFICATIONS_PAGE_SIZE })
+      .pipe(takeUntil(this.reset$))
+      .subscribe({
+        next: (page) => this.addMissing(page),
+        error: () => {}, // no toast, the old list stays on the screen
+      });
   }
 
   private refreshUnreadCount(): void {
-    this.notificationApi.getUnreadCount().subscribe({
-      next: (count) => this._unreadCount.set(count),
-      error: () => {},
-    });
+    this.notificationApi
+      .getUnreadCount()
+      .pipe(takeUntil(this.reset$))
+      .subscribe({
+        next: (count) => this._unreadCount.set(count),
+        error: () => {},
+      });
   }
 
   /** adds the notifications that are not in the list yet, and keeps it newest first */
@@ -173,11 +195,14 @@ export class NotificationService {
       if (missing.length === 0) return list;
 
       // by the time, not by the text: the api trims the zeros of the fraction, so "…12.5Z" and "…12.45Z" do not sort as text
-      return [...list, ...missing].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return [...list, ...missing].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
     });
   }
 
   private reset(): void {
+    this.reset$.next();
     this._notifications.set([]);
     this._unreadCount.set(0);
     this._isLoading.set(false);

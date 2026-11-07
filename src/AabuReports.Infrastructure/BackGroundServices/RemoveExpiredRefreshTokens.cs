@@ -20,7 +20,7 @@ public class RemoveExpiredRefreshTokens(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // a failed run (e.g. the DB is not reachable yet) must not stop the whole app, try again on the next run
-                logger.LogError(ex, "{ServiceName} failed removing expired refresh tokens", nameof(RemoveExpiredRefreshTokens));
+                logger.LogError(ex, "{ServiceName}.{MethodName} failed removing expired refresh tokens", nameof(RemoveExpiredRefreshTokens), nameof(ExecuteAsync));
             }
             
             await Task.Delay(TimeSpan.FromDays(1), stoppingToken);

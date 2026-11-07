@@ -88,14 +88,19 @@ public class ReportRepository(
 
         if (orderBy != null)
         {
-            if (orderByDesc) query = query.OrderByDescending(orderBy);
-            else query = query.OrderBy(orderBy);
+            if (orderByDesc) query = query.OrderByDescending(orderBy).ThenByDescending(r => r.Id);
+            else query = query.OrderBy(orderBy).ThenBy(r => r.Id);
         }
         
         if (skip != null) query = query.Skip(skip.Value);
         if (take != null) query = query.Take(take.Value);
 
         return query;
+    }
+
+    public Task<int> CountAsync(Expression<Func<Report, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Reports.CountAsync(predicate, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Report>> FilterAsync(

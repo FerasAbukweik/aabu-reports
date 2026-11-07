@@ -263,13 +263,13 @@
   </div>
 </div>
 
-<app-report-rating-modal [row]="liveRatingRow()" (closed)="ratingRow.set(null)" />
+<app-report-rating-modal [row]="liveRatingRow()" (closed)="ratingRow.set(null)" (rated)="reportsChanged.emit()" />
 
 @if (isAdmin()) {
-  <app-report-state-modal [row]="liveStateRow()" (closed)="stateRow.set(null)" />
+  <app-report-state-modal [row]="liveStateRow()" (closed)="stateRow.set(null)" (updated)="reportsChanged.emit()" />
   <app-report-delete-modal
     [row]="deleteRow()"
     (closed)="deleteRow.set(null)"
-    (deleted)="reportDeleted.emit()"
+    (deleted)="reportsChanged.emit()"
   />
 }

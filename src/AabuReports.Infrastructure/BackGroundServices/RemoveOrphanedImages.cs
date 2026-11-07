@@ -23,7 +23,7 @@ public class RemoveOrphanedImages(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // a failed run (e.g. the DB is not reachable yet) must not stop the whole app, try again on the next run
-                logger.LogError(ex, "{ServiceName} failed removing orphaned images", nameof(RemoveOrphanedImages));
+                logger.LogError(ex, "{ServiceName}.{MethodName} failed removing orphaned images", nameof(RemoveOrphanedImages), nameof(ExecuteAsync));
             }
 
             await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
@@ -40,8 +40,8 @@ public class RemoveOrphanedImages(
 
         if (!result.IsSuccess)
         {
-            logger.LogError("{ServiceName} could not remove all orphaned images: {error}",
-                nameof(RemoveOrphanedImages), result.ErrorMessage);
+            logger.LogError("{ServiceName}.{MethodName} could not remove all orphaned images: {error}",
+                nameof(RemoveOrphanedImages), nameof(RemoveOrphanedImagesMethod), result.ErrorMessage);
         }
     }
 }

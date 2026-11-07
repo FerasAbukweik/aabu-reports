@@ -12,7 +12,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { MessageDTO, messageKey } from '../../../../core/DTOs/message/message-dto';
+import { MessageDTO } from '../../../../core/DTOs/message/message-dto';
 import { MessageService } from '../../../../core/services/api-services/message.service';
 import { formatFullDate, formatRelativeDate } from '../../../../core/utils/date-format';
 import { IsVisibleDirective } from '../../../../shared/directives/is-visible.directive';
@@ -46,12 +46,13 @@ export class ReportChatComponent {
   protected readonly maxLength = MAX_LENGTH;
   protected readonly formatRelativeDate = formatRelativeDate;
   protected readonly formatFullDate = formatFullDate;
-  protected readonly messageKey = messageKey;
 
   // the service does not know the open report, so everything is read for this component's report
   protected readonly messages = computed(() => this.service.messages(this.reportId()));
   protected readonly isLoading = computed(() => this.service.isLoading(this.reportId()));
-  protected readonly isMoreAvailable = computed(() => this.service.isMoreAvailable(this.reportId()));
+  protected readonly isMoreAvailable = computed(() =>
+    this.service.isMoreAvailable(this.reportId()),
+  );
 
   /** the last page of the report failed to load: the sentinel stops asking, the user retries by hand */
   protected readonly hasLoadFailed = signal(false);
@@ -61,7 +62,8 @@ export class ReportChatComponent {
   protected readonly isSending = signal(false);
   protected readonly draft = signal('');
   protected readonly canSend = computed(
-    () => this.draft().trim().length > 0 && !this.isSending() && this.connectionState() === 'connected',
+    () =>
+      this.draft().trim().length > 0 && !this.isSending() && this.connectionState() === 'connected',
   );
 
   /** the "load older" sentinel at the top only works after the list was scrolled to the bottom (else it would load every page) */

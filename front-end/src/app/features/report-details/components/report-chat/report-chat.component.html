@@ -62,7 +62,7 @@
           <li class="h-px" aria-hidden="true" appIsVisible (visible)="loadOlder()"></li>
         }
 
-        @for (message of messages(); track messageKey(message)) {
+        @for (message of messages(); track message.id) {
           @let own = isOwn(message);
           <li class="flex items-start gap-3">
             <span

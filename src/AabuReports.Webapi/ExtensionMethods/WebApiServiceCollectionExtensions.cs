@@ -48,7 +48,8 @@ public static class WebApiServiceCollectionExtensions
     {
         // signalR (real time notifications), the service in Infrastructure pushes through INotificationPusher
         services.AddSignalR();
-        services.AddScoped<INotificationPusher, SignalRNotificationPusher>();
+        services.AddScoped<SignalRNotificationPusher>();
+        services.AddScoped<INotificationPusher>(provider => provider.GetRequiredService<SignalRNotificationPusher>());
         services.Decorate<INotificationPusher, LoggingNotificationPusher>();
 
         return services;

@@ -6,6 +6,7 @@ import { MaintenanceStatsDTO } from '../../DTOs/report/maintenance-stats-dto';
 import { ReportCreateForCoordinatesDTO } from '../../DTOs/report/report-create-for-coordinates-dto';
 import { ReportCreateForLocationDTO } from '../../DTOs/report/report-create-for-location-dto';
 import { ReportCreateResponseDTO } from '../../DTOs/report/report-create-response-dto';
+import { ReportTableDTO } from '../../DTOs/report/report-table-dto';
 import { ReportDTO } from '../../DTOs/report/report-dto';
 import { ReportFilterDTO } from '../../DTOs/report/report-filter-dto';
 import { ReportHistoryStatsDTO } from '../../DTOs/report/report-history-stats-dto';
@@ -76,9 +77,13 @@ export class ReportApiService {
    * The reports of the current user, or everyone's with `allReports` (the backend ignores it for a user who is not an admin).
    */
   public getTable(lazyDto: LazyDTO, filter: ReportFilterDTO = {}, allReports = false) {
-    return this.http.get<ReportDTO[]>(`${this.url}/table`, {
+    return this.http.get<ReportTableDTO>(`${this.url}/table`, {
       params: new HttpParams({
-        fromObject: { ...this.filterParams(filter), ...this.lazyParams(lazyDto), ...(allReports ? { allReports: true } : {}) },
+        fromObject: {
+          ...this.filterParams(filter),
+          ...this.lazyParams(lazyDto),
+          ...(allReports ? { allReports: true } : {}),
+        },
       }),
     });
   }

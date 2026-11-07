@@ -6,8 +6,14 @@ import { TableReportRow } from '../../../../core/interfaces/table-row';
 import { ReportSeverity } from '../../../../core/enums/report-severity.enum';
 import { ReportState } from '../../../../core/enums/report-state.enum';
 import { locationStatusLabel, locationStatusTone } from '../../../../core/utils/location-util';
-import { reportCategoryIcon, reportCategoryLabel } from '../../../../core/utils/report-category-utils';
-import { reportSeverityLabel, reportSeverityTone } from '../../../../core/utils/report-severity-utils';
+import {
+  reportCategoryIcon,
+  reportCategoryLabel,
+} from '../../../../core/utils/report-category-utils';
+import {
+  reportSeverityLabel,
+  reportSeverityTone,
+} from '../../../../core/utils/report-severity-utils';
 import { googleMapsUrl } from '../../../../core/utils/map.utils';
 import { toReportTableRow } from '../../../../core/utils/table-utils';
 import { StarRatingComponent } from '../../../../shared/components/star-rating/star-rating.component';
@@ -43,8 +49,8 @@ export class ReportsTableComponent {
   /** the page on the screen (the first is 1) and how many reports a page holds */
   readonly page = input(1);
   readonly pageSize = input.required<number>();
-  /** how many reports there are in all, undefined when it is not known (a filter is applied): then a full page means there may be one more */
-  readonly total = input<number>();
+  /** total matching reports, returned with the page by the backend */
+  readonly total = input.required<number>();
   /** a filter is applied: it only changes the text of the empty state */
   readonly isFiltered = input(false);
 
@@ -61,8 +67,8 @@ export class ReportsTableComponent {
   readonly pageChange = output<number>();
   /** the retry button was pressed after a failed load */
   readonly retryRequested = output<void>();
-  /** the admin deleted a report: the page on the screen has to be loaded again */
-  readonly reportDeleted = output<void>();
+  /** a successful mutation invalidated the table pages */
+  readonly reportsChanged = output<void>();
 
   // protected: template helpers
   protected readonly ReportState = ReportState;
@@ -77,14 +83,9 @@ export class ReportsTableComponent {
 
   protected readonly rows = computed(() => this.reports().map(toReportTableRow));
 
-  /** how many pages there are. It comes from the total; while the total is not known a full page means there may be one more */
-  protected readonly totalPages = computed(() => {
-    const total = this.total();
-
-    if (total !== undefined) return Math.max(1, Math.ceil(total / this.pageSize()));
-
-    return this.page() + (this.rows().length === this.pageSize() ? 1 : 0);
-  });
+  protected readonly totalPages = computed(() =>
+    Math.max(1, Math.ceil(this.total() / this.pageSize())),
+  );
 
   /** text on the start side of the footer, e.g. "عرض البلاغات 1 - 10" */
   protected readonly footerLabel = computed(() => {
@@ -95,9 +96,7 @@ export class ReportsTableComponent {
     const to = from + onPage - 1;
     const total = this.total();
 
-    return total !== undefined
-      ? `عرض البلاغات ${from} - ${to} من أصل ${total} بلاغاً`
-      : `عرض البلاغات ${from} - ${to}`;
+    return `عرض البلاغات ${from} - ${to} من أصل ${total} بلاغاً`;
   });
 
   protected readonly emptyMessage = computed(() =>

@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { defer, finalize, Observable, of, tap } from 'rxjs';
+import { Subject, takeUntil, defer, finalize, Observable, of, tap } from 'rxjs';
 import { MaintenanceStatsDTO } from '../../DTOs/report/maintenance-stats-dto';
 import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { ReportApiService } from '../api/report-api.service';
@@ -21,6 +21,8 @@ export class MaintenanceStatsService {
   private readonly _loading = signal(false);
   public readonly loading = this._loading.asReadonly();
 
+  private readonly reset$ = new Subject<void>();
+
   // methods
 
   /**
@@ -37,11 +39,18 @@ export class MaintenanceStatsService {
       this._loading.set(true);
 
       return this.reportApi.getStats().pipe(
+        takeUntil(this.reset$),
         tap((stats) => this._stats.set(stats)),
         finalize(() => this._loading.set(false)),
         toastError(this.toast, 'تعذر تحميل إحصائيات الصيانة', (e) => this.errorMessage(e)),
       );
     });
+  }
+
+  public reset(): void {
+    this.reset$.next();
+    this._stats.set(null);
+    this._loading.set(false);
   }
 
   // private

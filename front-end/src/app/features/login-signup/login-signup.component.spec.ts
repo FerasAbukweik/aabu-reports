@@ -91,6 +91,7 @@ describe('LoginSignup verification flow', () => {
     vi.advanceTimersByTime(1200);
     expect(component.registerState()).toBe('idle');
     component.onOtpCompleted('123456');
+    expect(auth.verifyEmail).toHaveBeenCalledWith('1234567890', '123456');
     expect(component.registerState()).toBe('success');
     vi.advanceTimersByTime(1200);
     expect(router.navigate).toHaveBeenCalledWith(['/report']);

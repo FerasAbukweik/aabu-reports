@@ -30,6 +30,7 @@ public class NotificationRepository(
 
         return await query
             .OrderByDescending(n => n.CreatedAt)
+            .ThenByDescending(n => n.Id)
             .Skip(lazyLoadingDto.Skip)
             .Take(lazyLoadingDto.Take)
             .ToListAsync(cancellationToken);

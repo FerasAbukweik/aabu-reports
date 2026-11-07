@@ -106,6 +106,8 @@ public class ReportServiceTests : ServiceTestBase
         LogArrange(nameof(reports), reports);
 
         SetupFilter(reports);
+        _reportRepositoryMock.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Report, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(27);
 
         // Act
         var result = await _reportService.LazyGetFilteredAsync(userId, new ReportFilterDto(), lazy);
@@ -113,8 +115,9 @@ public class ReportServiceTests : ServiceTestBase
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().HaveCount(2);
-        result.Value!.Select(r => r.Id).Should().Equal(reports.Select(r => r.Id));
+        result.Value!.Reports.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(27);
+        result.Value!.Reports.Select(r => r.Id).Should().Equal(reports.Select(r => r.Id));
 
         _reportRepositoryMock.Verify(
             r => r.FilterAsync(
@@ -162,6 +165,39 @@ public class ReportServiceTests : ServiceTestBase
         var compiled = predicate!.Compile();
         compiled(first).Should().BeTrue();
         compiled(second).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LazyGetFilteredAsync_ShouldCountWithTheSameFilterAndUserScope(bool allReports)
+    {
+        // Arrange
+        Guid? userId = allReports ? null : Guid.NewGuid();
+        var ownerId = userId ?? Guid.NewGuid();
+        var matching = CreateReport(userId: ownerId);
+        var otherUser = CreateReport(userId: Guid.NewGuid());
+        var differentState = CreateReport(userId: ownerId);
+        differentState.ChangeState(ReportStateEnum.Fixed);
+        Expression<Func<Report, bool>>? countPredicate = null;
+        Expression<Func<Report, bool>>? pagePredicate = null;
+        SetupFilter(new List<Report>(), p => pagePredicate = p);
+        _reportRepositoryMock.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Report, bool>>>(), It.IsAny<CancellationToken>()))
+            .Callback<Expression<Func<Report, bool>>, CancellationToken>((p, _) => countPredicate = p)
+            .ReturnsAsync(17);
+
+        // Act: even an empty page beyond the end retains the full matching count.
+        var result = await _reportService.LazyGetFilteredAsync(userId,
+            new ReportFilterDto { State = matching.State }, new LazyLoadingDto { Skip = 20, Take = 10 });
+
+        // Assert
+        countPredicate.Should().BeSameAs(pagePredicate);
+        var matches = countPredicate!.Compile();
+        matches(matching).Should().BeTrue();
+        matches(otherUser).Should().Be(allReports);
+        matches(differentState).Should().BeFalse();
+        result.Value!.Reports.Should().BeEmpty();
+        result.Value.TotalCount.Should().Be(17);
     }
 
     #endregion
@@ -607,6 +643,22 @@ public class ReportServiceTests : ServiceTestBase
 
     #region UpdateStateAsync
 
+    [Theory]
+    [InlineData(ReportStateEnum.Normal)]
+    [InlineData((ReportStateEnum)999)]
+    public async Task UpdateStateAsync_ShouldRejectInvalidReportStates(ReportStateEnum state)
+    {
+        // Arrange
+        var dto = new ReportUpdateStateDto { Id = Guid.NewGuid(), State = state };
+
+        // Act
+        var result = await _reportService.UpdateStateAsync(dto);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        _reportRepositoryMock.Verify(r => r.UpdateState(It.IsAny<ReportUpdateStateDto>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task UpdateStateAsync_ShouldReturnNotFound_WhenReportDoesNotExist()
     {
@@ -657,7 +709,6 @@ public class ReportServiceTests : ServiceTestBase
     }
 
     [Theory]
-    [InlineData(ReportStateEnum.Normal)]
     [InlineData(ReportStateEnum.Pending)]
     public async Task UpdateStateAsync_ShouldNotNotify_WhenTheNewStateIsNotWorthANotification(ReportStateEnum newState)
     {

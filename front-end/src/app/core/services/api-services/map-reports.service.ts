@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { defer, EMPTY, finalize, Observable, tap } from 'rxjs';
+import { Subject, takeUntil, defer, EMPTY, finalize, Observable, tap } from 'rxjs';
 import { CUSTOM_PIN_ID } from '../../constants/location';
 import { LocationDTO } from '../../DTOs/location/location-dto';
 import { ReportCreateDTO } from '../../DTOs/report/report-create-dto';
@@ -10,6 +10,7 @@ import { defaultErrorReason, toastError } from '../../utils/error-toast';
 import { ReportApiService } from '../api/report-api.service';
 import { ToastService } from '../local/toast.service';
 import { LocationService } from './location.service';
+import { ReportsTableService } from './reports-table.service';
 
 /** how many reports of a location are loaded each time */
 const LOCATION_REPORTS_PAGE_SIZE = 10;
@@ -20,6 +21,7 @@ export class MapReportsService {
   // DI
   private reportApi = inject(ReportApiService);
   private locationService = inject(LocationService);
+  private reportsTable = inject(ReportsTableService);
   private toast = inject(ToastService);
 
   // state
@@ -37,6 +39,8 @@ export class MapReportsService {
    * (the count can be old, e.g. a report was deleted). Without this the sentinel would ask for the empty page again and again.
    */
   private readonly _locationReportsExhausted = signal<Record<string, boolean>>({});
+
+  private readonly reset$ = new Subject<void>();
 
   // methods
 
@@ -77,9 +81,11 @@ export class MapReportsService {
         : this.reportApi.createForLocation({ locationId: location.id, ...reportCreateDto });
 
     return request$.pipe(
+      takeUntil(this.reset$),
       toastError(this.toast, 'تعذر إرسال البلاغ', (e) => this.errorMessage(e)),
       tap(({ report, location }) => {
         this.locationService.upsert(location);
+        this.reportsTable.invalidate();
         // the new report goes on top of the list of its location. A location that was never loaded
         // starts its list with it (`?? []`). `taken` is the length of the list, so the next page moves with it
         this._locationReports.update((all) => ({
@@ -118,19 +124,32 @@ export class MapReportsService {
       return this.reportApi
         .getByLocation(locationId, { taken, sectionSize: LOCATION_REPORTS_PAGE_SIZE })
         .pipe(
+          takeUntil(this.reset$),
           tap((reports) => {
             this._locationReports.update((all) => ({
               ...all,
-              [locationId]: [...(all[locationId] ?? []), ...reports],
+              [locationId]: [
+                ...(all[locationId] ?? []),
+                ...reports.filter(
+                  (report) => !(all[locationId] ?? []).some((loaded) => loaded.id === report.id),
+                ),
+              ],
             }));
 
-            if (reports.length === 0)
+            if (reports.length < LOCATION_REPORTS_PAGE_SIZE)
               this._locationReportsExhausted.update((all) => ({ ...all, [locationId]: true }));
           }),
           finalize(() => this.setLocationReportsLoading(locationId, false)),
           toastError(this.toast, 'تعذر تحميل بلاغات الموقع', (e) => this.errorMessage(e)),
         );
     });
+  }
+
+  public reset(): void {
+    this.reset$.next();
+    this._locationReports.set({});
+    this._isLocationReportsLoading.set({});
+    this._locationReportsExhausted.set({});
   }
 
   // private

@@ -21,6 +21,7 @@ public class MessageRepository(
             .Include(m => m.Sender)
             .Where(m => m.ReportId == reportId)
             .OrderByDescending(m => m.SentAt)
+            .ThenByDescending(m => m.Id)
             .Skip(lazyLoadingDto.Skip)
             .Take(lazyLoadingDto.Take)
             .ToListAsync(cancellationToken);

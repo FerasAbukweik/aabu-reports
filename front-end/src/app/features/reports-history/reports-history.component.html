@@ -46,7 +46,7 @@
 
   <!-- Search + filters: the bar owns the filters and says them when they are applied -->
   <app-search-filter-bar
-    [resultsCount]="reports().length"
+    [resultsCount]="total()"
     [isLoading]="isLoading()"
     (applied)="onFilterApplied($event)"
   />
@@ -63,6 +63,6 @@
     [isAdmin]="isAdmin"
     (pageChange)="goToPage($event)"
     (retryRequested)="retry()"
-    (reportDeleted)="onReportDeleted()"
+    (reportsChanged)="onReportsChanged()"
   />
 </div>
